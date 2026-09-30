@@ -1,0 +1,62 @@
+from enum import StrEnum
+
+
+class IncidentState(StrEnum):
+    NEW = "NEW"
+    TRIAGED = "TRIAGED"
+    INVESTIGATING = "INVESTIGATING"
+    EVIDENCE_COLLECTED = "EVIDENCE_COLLECTED"
+    DIAGNOSING = "DIAGNOSING"
+    DIAGNOSED = "DIAGNOSED"
+    PLAN_PROPOSED = "PLAN_PROPOSED"
+    AWAITING_APPROVAL = "AWAITING_APPROVAL"
+    EXECUTING = "EXECUTING"
+    VALIDATING = "VALIDATING"
+    RESOLVED = "RESOLVED"
+    FAILED = "FAILED"
+    ESCALATED = "ESCALATED"
+
+
+class Severity(StrEnum):
+    SEV1 = "SEV-1"
+    SEV2 = "SEV-2"
+    SEV3 = "SEV-3"
+
+
+class EvidenceType(StrEnum):
+    LOG = "LOG"
+    TRANSACTION = "TRANSACTION"
+    DEPLOYMENT = "DEPLOYMENT"
+    CUSTOMER = "CUSTOMER"
+    SERVICE_METRIC = "SERVICE_METRIC"
+    KNOWLEDGE_BASE = "KNOWLEDGE_BASE"
+    TEST_RESULT = "TEST_RESULT"
+    CODE = "CODE"
+    INCIDENT = "INCIDENT"
+
+
+class ToolRiskLevel(StrEnum):
+    READ = "read"
+    SAFE_WRITE = "safe_write"
+    CRITICAL_WRITE = "critical_write"
+
+
+class PolicyDecision(StrEnum):
+    ALLOW = "ALLOW"
+    REQUIRE_APPROVAL = "REQUIRE_APPROVAL"
+    DENY = "DENY"
+
+
+class ApprovalStatus(StrEnum):
+    PENDING = "PENDING"
+    APPROVED = "APPROVED"
+    REJECTED = "REJECTED"
+    EXPIRED = "EXPIRED"
+    CONSUMED = "CONSUMED"
+
+
+class ExecutionStatus(StrEnum):
+    EXECUTED = "EXECUTED"
+    SIMULATED = "SIMULATED"
+    NOT_EXECUTED = "NOT_EXECUTED"
+    BLOCKED = "BLOCKED"

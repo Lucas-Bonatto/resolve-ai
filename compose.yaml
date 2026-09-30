@@ -1,0 +1,62 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: resolveai
+      POSTGRES_USER: resolveai
+      POSTGRES_PASSWORD: resolveai
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U resolveai -d resolveai"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    volumes:
+      - resolveai-postgres:/var/lib/postgresql/data
+
+  api:
+    build:
+      context: .
+      dockerfile: services/api/Dockerfile
+    environment:
+      AI_PROVIDER: ${AI_PROVIDER:-demo}
+      ENABLE_REAL_AI: ${ENABLE_REAL_AI:-false}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-6-luna}
+      DATABASE_URL: postgresql+psycopg://resolveai:resolveai@postgres:5432/resolveai
+      DEMO_EVENT_DELAY_MS: ${DEMO_EVENT_DELAY_MS:-180}
+    ports:
+      - "8000:8000"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=2)"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  migrate:
+    build:
+      context: .
+      dockerfile: services/api/Dockerfile
+    command: ["sh", "-c", "cd services/api && alembic upgrade head"]
+    environment:
+      DATABASE_URL: postgresql+psycopg://resolveai:resolveai@postgres:5432/resolveai
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost:8000
+    ports:
+      - "3000:3000"
+    depends_on:
+      api:
+        condition: service_healthy
+
+volumes:
+  resolveai-postgres:

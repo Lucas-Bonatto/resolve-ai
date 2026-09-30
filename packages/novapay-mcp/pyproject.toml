@@ -1,0 +1,16 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "novapay-mcp"
+version = "0.1.0"
+description = "Typed MCP server for the fictional NovaPay environment"
+requires-python = ">=3.11"
+dependencies = ["mcp>=2,<3", "pydantic>=2.11,<3"]
+
+[project.scripts]
+novapay-mcp = "novapay_mcp.server:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/novapay_mcp"]

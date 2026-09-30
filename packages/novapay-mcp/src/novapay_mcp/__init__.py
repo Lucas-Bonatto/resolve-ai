@@ -1,0 +1,1 @@
+"""Fictional NovaPay MCP server."""

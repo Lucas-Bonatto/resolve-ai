@@ -1,0 +1,35 @@
+# Security model
+
+## Assets and trust boundaries
+
+The protected assets are tool credentials, incident data, approval authority, audit integrity, and the truthfulness of execution status. Inputs from users, models, MCP tools, logs, tickets, and knowledge documents are untrusted.
+
+The central boundary is simple: the model proposes, the application authorizes, and the operator approves critical writes.
+
+## Threats and controls
+
+| Threat | Control | Verification |
+| --- | --- | --- |
+| Prompt injection in logs or retrieved text | Data is delimited; permission logic cannot be changed by prompt text | Five injection benchmark cases |
+| Critical action without consent | Fail-closed risk policy and exact-action approval | Unit and browser rejection tests |
+| Approval replay or argument substitution | Incident/tool-call binding, canonical argument hash, expiration, one-time decision | Permission tests |
+| Fabricated evidence | Diagnosis evidence IDs are checked against incident-owned records | Orchestrator tests |
+| Cross-incident access | Repository and gateway calls are scoped by incident | Typed repository boundaries |
+| Arbitrary SQL, shell, or network behavior | No general-purpose execution tool; all tools have bounded schemas | Tool catalog review |
+| Secret leakage | Pydantic secret type, ignored local env files, no key in client bundle | Git ignore and review checks |
+| Misleading demo claims | `SIMULATED`, `EXECUTED`, and `NOT_EXECUTED` labels | UI tests and documentation |
+
+## Tool risk classes
+
+- `READ`: bounded retrieval with no side effect; automatic.
+- `SAFE_WRITE`: reversible operation inside an allowlisted simulator; automatic and audited.
+- `CRITICAL_WRITE`: material operational change; requires exact-action human approval.
+- `FORBIDDEN`: unsupported or unbounded capability; denied.
+
+The application recalculates risk on the server. A tool or model cannot downgrade its own risk class.
+
+The testable hard properties and their current verification are cataloged in [security invariants](security-invariants.md).
+
+## Production gaps
+
+The portfolio demo is not an internet-facing control plane. Production adoption requires authentication, authorization, tenant isolation, PostgreSQL repository implementation, encrypted secret storage, network egress rules, rate limits, idempotency across processes, tamper-evident audit export, retention controls, observability, and incident-response ownership.

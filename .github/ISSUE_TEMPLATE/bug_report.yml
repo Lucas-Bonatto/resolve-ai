@@ -1,0 +1,34 @@
+name: Bug report
+description: Report a reproducible problem in ResolveAI
+title: "[Bug]: "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: Do not report vulnerabilities or include real secrets/customer data here. Follow SECURITY.md instead.
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Observed behavior
+      description: What happened, and which execution label was displayed?
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Reproduction
+      description: Include commands, scenario, state, and sanitized logs.
+    validations:
+      required: true
+  - type: input
+    id: revision
+    attributes:
+      label: Revision and environment
+    validations:
+      required: true
