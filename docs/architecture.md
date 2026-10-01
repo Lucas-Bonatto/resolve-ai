@@ -17,7 +17,7 @@ flowchart LR
     H --> N
     A --> R[(Repository)]
     R --> IM[In-memory demo adapter]
-    R --> PG[(PostgreSQL production adapter)]
+    R --> PG[(PostgreSQL durable adapter)]
     A --> V[Evaluation Runner]
     M[NovaPay MCP Server] --> F[Fictional NovaPay Contract]
     N --> F
@@ -44,7 +44,7 @@ stateDiagram-v2
 
 ## Trust boundaries
 
-The model proposes; the application authorizes. Tool arguments are validated before policy evaluation. An approval binds the requested action, tool, tool call, incident, and canonical argument hash and cannot authorize an expired request or replay. PostgreSQL consumes the approval with one conditional update before the side effect. Evidence IDs in model output are checked against incident-owned evidence. Retrieved text is delimited and treated as untrusted.
+The model proposes; the application authorizes. Strict per-tool Pydantic schemas validate and canonicalize arguments before policy evaluation. An approval binds the requested action, tool, tool call, incident, and canonical argument hash and cannot authorize an expired request or replay. The gateway reloads the authoritative approval before execution. PostgreSQL uses compare-and-set decisions and consumes the approval with one conditional update before the side effect. Evidence IDs in model output are checked against incident-owned evidence. Retrieved text is delimited and treated as untrusted.
 
 ## Data strategy
 
@@ -62,4 +62,4 @@ The current coordinator calls `ToolGateway` and `NovaPaySimulator` directly. The
 
 ## Realtime choice
 
-Server-Sent Events fit the one-way event stream from workflow to browser. Commands such as approve/reject remain ordinary authenticated REST requests. Events are emitted by actual workflow steps; optional deterministic delay is labeled simulated and exists only for demo legibility.
+Server-Sent Events fit the one-way event stream from workflow to browser. Commands such as approve/reject remain ordinary REST requests. The local portfolio demo has no authentication, so these endpoints must not be exposed as an enterprise approval plane. Events are emitted by actual workflow steps; optional deterministic delay is labeled simulated and exists only for demo legibility.

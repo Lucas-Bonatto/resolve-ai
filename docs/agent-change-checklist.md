@@ -65,3 +65,14 @@ Use this checklist for changes to providers, prompts, tools, orchestration, stru
 - [x] Timeout, provider unavailability, tool failure, rejection, insufficient evidence, and failed validation have safe outcomes.
 - [x] Frontend and backend public contracts were updated together.
 - [x] Optional live-provider smoke remains opt-in and secret-safe.
+
+## Phase 4 staff/red-team review — 2026-10-01
+
+- [x] No prompt was changed; retrieved records remain untrusted data and private reasoning is excluded.
+- [x] Tool arguments now use strict, bounded schemas; allowlists, failures, evidence links, and audit records were verified.
+- [x] `CRITICAL_WRITE` stayed fixed and forged, stale, mutated, mismatched, expired, rejected, and replayed approvals fail closed.
+- [x] Diagnosis schemas reject missing, extra, null, invalid-enum, invalid-confidence, and unknown-evidence output.
+- [x] The full deterministic benchmark ran; 30 cases exercised the production gateway boundary and the visible 39/40 result remained unchanged.
+- [x] Injection cases `eval_security_031`–`035`, malicious-provider behavior, missing evidence, tool failure, timeout, rejection, and failed validation have safe outcomes.
+- [x] Tool-call, turn, and investigation-time bounds remain enforced; the OpenAI provider still performs one bounded structured diagnosis call.
+- [x] A safe live OpenAI smoke reached the provider but failed with account-credit exhaustion; no success claim is made.

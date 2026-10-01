@@ -14,9 +14,9 @@ These are hard properties, not prompt suggestions. A change that violates one mu
 
 **Reason.** A legitimate decision must not authorize changed parameters, another incident/action, an expired request, or replay.
 
-**Enforcement.** Approval binds incident ID, requested action, tool, tool-call ID, canonical arguments hash, status, expiry, and approving user. The gateway consumes approval before attempting the side effect. PostgreSQL uses an atomic `UPDATE ... WHERE status = APPROVED` with the exact bindings and expiry predicate, so only one competing worker can consume it.
+**Enforcement.** Approval binds incident ID, requested action, tool, tool-call ID, canonical arguments hash, status, expiry, and approving user. The gateway reloads the repository-owned approval, rejects caller-supplied binding differences, and consumes approval before attempting the side effect. PostgreSQL decisions use compare-and-set status predicates; consumption uses an atomic `UPDATE ... WHERE status = APPROVED` with the exact bindings and expiry predicate, so stale or competing workers cannot reopen or consume one approval twice.
 
-**Verification.** The permission suite covers missing, rejected, expired, consumed, action/tool/tool-call/incident mismatch, modified arguments, replay, and concurrent consumption. `test_postgres_consumes_one_approval_across_repository_instances` exercises the database boundary when `TEST_DATABASE_URL` exists.
+**Verification.** The permission suite covers missing, rejected, expired, consumed, action/tool/tool-call/incident mismatch, modified and non-canonical arguments, forged approval objects, replay, and concurrent consumption. The repository contract rejects a stale decision after consumption. `test_postgres_consumes_one_approval_across_repository_instances` exercises the real database boundary when `TEST_DATABASE_URL` exists.
 
 ## Invariant 3 — Retrieved content cannot change authorization policy
 
@@ -24,15 +24,15 @@ These are hard properties, not prompt suggestions. A change that violates one mu
 
 **Enforcement.** Retrieved text is untrusted evidence. Permission decisions accept fixed risk and application state, never text or model instructions. Critical MCP functions remain proposal-only.
 
-**Verification.** `test_tool_output_cannot_grant_approval_or_trigger_a_critical_action` and `test_log_injection_remains_untrusted_data` exercise hostile text through the real gateway. Benchmark cases `eval_security_031`–`035` cover the deterministic evaluation contract.
+**Verification.** `test_tool_output_cannot_grant_approval_or_trigger_a_critical_action`, `test_log_injection_remains_untrusted_data`, and `test_compromised_provider_cannot_authorize_a_critical_action` exercise hostile text and a malicious provider through the real gateway. Benchmark cases `eval_security_031`–`035` actively probe the critical boundary without approval.
 
 ## Invariant 4 — Agent evidence references must exist on the incident
 
 **Reason.** A plausible diagnosis is not auditable if its citations are invented or cross incident boundaries.
 
-**Enforcement.** Repository writes validate supporting and contradicting hypothesis evidence, supported diagnoses, approvals, validation, and reports against the incident-owned evidence set. `INSUFFICIENT_EVIDENCE` is an explicit typed outcome.
+**Enforcement.** Repository writes validate supporting and contradicting hypothesis evidence, supported diagnoses, approvals, validation, and reports against the incident-owned evidence set. The coordinator persists evidence only after validating the corresponding bounded tool output and links evidence IDs back to the tool call. API snapshots are deep copies. `INSUFFICIENT_EVIDENCE` is an explicit typed outcome.
 
-**Verification.** `test_diagnosis_rejects_unknown_and_cross_incident_evidence`, `test_hypothesis_rejects_cross_incident_evidence`, and `test_unknown_agent_evidence_reference_fails_the_run` cover nonexistent, cross-incident, and provider-hallucinated IDs.
+**Verification.** `test_diagnosis_rejects_unknown_and_cross_incident_evidence`, `test_hypothesis_rejects_cross_incident_evidence`, `test_unknown_agent_evidence_reference_fails_the_run`, the missing-signal workflow tests, and the snapshot-mutation regression cover nonexistent, cross-incident, provider-hallucinated, uncorroborated, and caller-mutated evidence.
 
 ## Invariant 5 — Agents cannot execute arbitrary shell commands
 

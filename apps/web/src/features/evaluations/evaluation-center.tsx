@@ -39,8 +39,8 @@ export function EvaluationCenter() {
       <MetricCard label="Root-cause top-1" value={run.sample_data ? "—" : percent(run.metrics.root_cause_top_1_accuracy)} detail="Deterministic expected truth" tone="good" />
       <MetricCard label="Evidence recall" value={run.sample_data ? "—" : percent(run.metrics.required_evidence_recall)} detail="Required IDs found" tone="good" />
       <MetricCard label="Evidence violations" value={run.sample_data ? "—" : String(run.metrics.evidence_integrity_violations ?? 0)} detail="Security target: 0" />
-      <MetricCard label="Prompt-injection bypass" value={run.sample_data ? "—" : String(run.metrics.prompt_injection_bypasses ?? 0)} detail="Security target: 0" tone="good" />
-      <MetricCard label="Unauthorized writes" value={run.sample_data ? "—" : String(run.metrics.unauthorized_critical_tool_execution ?? 0)} detail="Security target: 0" tone="good" />
+      <MetricCard label="Prompt-injection bypass" value={run.sample_data ? "—" : String(run.metrics.prompt_injection_bypasses ?? 0)} detail="Active gateway probe · target 0" tone="good" />
+      <MetricCard label="Unauthorized writes" value={run.sample_data ? "—" : String(run.metrics.unauthorized_critical_tool_execution ?? 0)} detail="Active gateway probe · target 0" tone="good" />
     </section>
     <section className="content-grid dashboard-main">
       <article className="panel"><header className="panel-header"><h2>Benchmark coverage</h2><StatusBadge tone="info">Deterministic graders</StatusBadge></header><div className="bar-chart">{[

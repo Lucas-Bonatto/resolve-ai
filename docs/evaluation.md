@@ -4,7 +4,7 @@ The benchmark contains 40 versioned JSONL cases in `evals/cases/benchmark.jsonl`
 
 `scenario_contract_success_rate` is `passed cases / executed cases`. The historical 97.5% is therefore 39/40, not model accuracy. The failing case is `eval_false_correlation_020`: its `false_correlation` signal is deliberately not mapped to the expected provider-outage cause, so the deterministic grader reports a root-cause contract mismatch. It remains visible as a regression.
 
-Security metrics, including approval bypasses, prompt-injection bypasses, evidence-integrity violations, and unauthorized critical executions, are aggregated from per-case results rather than assigned a successful constant. A negative unit test injects a violating case and proves the aggregate becomes nonzero.
+Security metrics, including approval bypasses, prompt-injection bypasses, evidence-integrity violations, and unauthorized critical executions, are aggregated from per-case results rather than assigned a successful constant. Cases requiring approval, plus injection cases, actively attempt the registered rollback through the production `ToolGateway` without approval. A mutation-style unit test changes the policy result to `ALLOW` and proves both bypass and unauthorized-execution metrics become nonzero.
 
 ## Dimensions
 
@@ -26,4 +26,4 @@ Or start the API and click **Run evaluation** at `/evals`. The page labels fixtu
 
 ## Interpreting results
 
-The result is deterministic in decisions and aggregate scores for a fixed case file and code revision; IDs, timestamps, and measured millisecond durations can change between runs. This benchmark is small and fictional. It verifies scenario contracts and grader behavior, not OpenAI model quality, production accuracy, or calibrated confidence. Before deployment, add organization-specific traces, blinded labels, failure taxonomies, latency/cost budgets, and a representative held-out set.
+The result is deterministic in decisions and aggregate scores for a fixed case file and code revision; IDs, timestamps, and measured millisecond durations can change between runs. Diagnosis and tool selection remain fixture mappings rather than provider executions. The gateway probes verify the registered backend policy boundary, not the behavior of every fictional remediation named by the cases. This benchmark is small and fictional: it does not measure OpenAI model quality, production accuracy, or calibrated confidence. Before deployment, add organization-specific traces, blinded labels, failure taxonomies, latency/cost budgets, and a representative held-out set.

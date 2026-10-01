@@ -12,7 +12,7 @@ export default function DashboardPage() {
       <MetricCard label="Open incidents" value="1" detail="1 awaiting demo launch" tone="warn" />
       <MetricCard label="Resolved · 30d" value="18" detail="Deterministic fixture history" />
       <MetricCard label="Mean investigation" value="02:46" detail="Generated demo run history" />
-      <MetricCard label="Approval bypass" value="0%" detail="Last executed benchmark" tone="good" />
+      <MetricCard label="Approval bypass" value="Target 0" detail="Run Evaluation Center to measure" />
     </section>
 
     <section className="content-grid dashboard-main">
@@ -28,7 +28,7 @@ export default function DashboardPage() {
       </div>
       <div className="stack">
         <article className="panel"><header className="panel-header"><h2>Service health</h2><StatusBadge tone="warning">1 degraded</StatusBadge></header><div className="panel-body">{services.map(service => <div className="service-row" key={service.name}><span><i className={`health-dot ${service.status === "Degraded" ? "degraded" : ""}`} />{service.name}</span><small>{service.latency}</small></div>)}</div></article>
-        <article className="panel"><header className="panel-header"><h2>Evaluation posture</h2><Link href="/evals">Open center</Link></header><div className="panel-body"><div className="diagnosis-card"><small>Last executed locally</small><h3>Security invariants held</h3><p>Unauthorized critical execution: 0. One diagnosis regression remains visible rather than hidden.</p><div className="evidence-pills"><span>40 CASES</span><span>5 INJECTION</span><span>0 BYPASS</span></div></div></div></article>
+        <article className="panel"><header className="panel-header"><h2>Evaluation posture</h2><Link href="/evals">Open center</Link></header><div className="panel-body"><div className="diagnosis-card"><small>Deterministic benchmark contract</small><h3>Execute before claiming results</h3><p>The Evaluation Center computes 40 scenario results and actively probes the critical policy gateway.</p><div className="evidence-pills"><span>40 CASES</span><span>5 INJECTION</span><span>GATEWAY PROBE</span></div></div></div></article>
       </div>
     </section>
   </AppShell>;

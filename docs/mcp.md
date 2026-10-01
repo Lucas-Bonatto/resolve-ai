@@ -8,7 +8,7 @@
 .\.venv\Scripts\python.exe -m novapay_mcp.server
 ```
 
-The package is installed in editable mode by the repository setup command. Tool schemas reject unknown fields and constrain result sizes. Every structured result contains a server-generated `correlation_id`, evidence IDs, an execution label, and a matching sanitized audit envelope. Critical functions return `REQUIRE_APPROVAL` with `executed: false`; only the ResolveAI application gateway can consume an application approval.
+The package is installed in editable mode by the repository setup command. Tool schemas reject unknown fields, constrain result sizes, and return no evidence ID for unknown fictional resources. Every structured result contains a server-generated `correlation_id`, evidence IDs, an execution label, and a matching sanitized audit envelope. Critical functions validate allowlisted resources and return `REQUIRE_APPROVAL` with `executed: false`; only the ResolveAI application gateway can consume an application approval. A protocol-level test starts the server over `stdio`, lists its tools, and invokes the rollback proposal.
 
 ## Design rules
 

@@ -15,6 +15,7 @@
 - Phase 10: Docker, CI, open-source policy, launch, and operator documentation
 - Phase 11: repository engineering constitution, security invariants, codebase map, task/PR templates, and task-specific Definition of Done
 - Product Proof: PostgreSQL repository, reproducible migrations, atomic approval consumption, evidence integrity, correlation IDs, validation/reporting, adversarial security tests, and provider-aware evaluation metadata
+- Staff/red-team hardening: authoritative approval reload, strict tool schemas, stale-decision protection, tool-output-backed evidence, active evaluation policy probes, protocol-level MCP verification, and tracked-file secret scanning
 
 ## Next
 
@@ -30,6 +31,7 @@
 - Model confidence is a heuristic, not a calibrated probability.
 - A live OpenAI provider smoke test reached the API on 2026-10-01 but returned `credit_balance_exhausted`; the real-provider result is therefore `NOT_EXECUTED` until account credits are available.
 - Correlation IDs and structured audit records are implemented; production log export and tamper-evident archival are not.
+- PostgreSQL migrations and repository contracts are tested locally, but real PostgreSQL concurrency was not rerun during the Phase 4 audit because Docker/PostgreSQL were unavailable on the audit host.
 
 ## Important decisions
 

@@ -2,7 +2,7 @@
 
 **Auditable incident intelligence that reasons with evidence and keeps humans in control.**
 
-ResolveAI is a production-shaped engineering case study for autonomous incident response. It investigates a fictional NovaPay outage, collects typed evidence, maintains competing hypotheses, proposes a remediation, pauses at a policy boundary, and validates recovery after an operator approves the exact action.
+ResolveAI is a production-shaped engineering case study for bounded agentic incident response. It investigates a fictional NovaPay outage, collects typed evidence, maintains competing hypotheses, proposes a remediation, pauses at a policy boundary, and validates recovery after an operator approves the exact action.
 
 The application is intentionally honest about execution: the public experience uses deterministic simulated systems, while the same typed provider boundary can call the OpenAI Agents SDK when configured.
 
@@ -11,11 +11,11 @@ The application is intentionally honest about execution: the public experience u
 ## What you can verify
 
 - A full incident state machine from `NEW` to `RESOLVED`, including rejection and failure branches.
-- Every diagnosis cites evidence IDs owned by the incident.
+- Every supported diagnosis cites evidence IDs owned by the incident.
 - Read tools can run automatically; critical writes fail closed and require an expiring approval.
 - Approvals are bound to incident, requested action, tool, tool call, expiry, reviewer, and a canonical hash of the exact arguments. Consumption is atomic in PostgreSQL.
 - A standalone typed MCP server exposes 14 bounded NovaPay operations.
-- Forty executable evaluation cases cover diagnosis quality, insufficient evidence, injection resistance, and approval bypass.
+- Forty deterministic evaluation cases cover scenario contracts; approval and injection cases actively probe the production tool gateway.
 - UI results distinguish `SIMULATED`, `EXECUTED`, and `NOT_EXECUTED` behavior.
 
 ## Architecture
@@ -33,7 +33,7 @@ flowchart LR
   E -->|critical write| H[Exact-action approval]
   H --> N
   A --> V[Evaluation runner]
-  A --> R[(PostgreSQL production repository)]
+  A --> R[(PostgreSQL durable repository)]
   M[Standalone MCP server] --> F[Fictional NovaPay contract]
   N --> F
 ```
@@ -112,7 +112,7 @@ npm run build
 npm run test:e2e
 ```
 
-Run the benchmark directly with `.\.venv\Scripts\python.exe evals/run_local.py`, or execute it from the Evaluation Center. The historical 97.5% is a deterministic scenario-contract result (39/40), not OpenAI model accuracy. The deliberately retained `eval_false_correlation_020` failure remains visible.
+Run the benchmark directly with `.\.venv\Scripts\python.exe evals/run_local.py`, or execute it from the Evaluation Center. The historical 97.5% is a deterministic scenario-contract result (39/40), not OpenAI model accuracy. Security cases actively attempt an unapproved registered critical action against `ToolGateway`; they do not represent a red-team assessment of an OpenAI model. The deliberately retained `eval_false_correlation_020` failure remains visible.
 
 ## Repository map
 
@@ -127,7 +127,7 @@ docs/                     Architecture, security, demo, ADRs, and launch notes
 
 ## Project posture
 
-This repository demonstrates secure orchestration patterns; it is not a claim that an autonomous system should receive unrestricted production access. The default no-dependency store is intentionally ephemeral, PostgreSQL is opt-in (and used by Compose), authentication is not implemented for the local portfolio demo, and live GitHub writes are disabled. Read [project status](PROJECT_STATUS.md) before adapting it for a hosted or multi-user environment.
+This repository demonstrates secure orchestration patterns; it is not a claim that an autonomous system should receive unrestricted production access. The default no-dependency store is intentionally ephemeral, PostgreSQL is opt-in (and used by Compose), and live GitHub writes are disabled. Authentication is not implemented for the local portfolio demo, so approval actors are self-asserted demo identities rather than authenticated enterprise principals. Read [project status](PROJECT_STATUS.md) before adapting it for a hosted or multi-user environment.
 
 ## Contributing and security
 

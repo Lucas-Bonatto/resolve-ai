@@ -54,9 +54,9 @@ Retrieved content is enclosed as untrusted evidence for the OpenAI provider. Pro
 
 ## Tool and approval flow
 
-Read and safe-write tools pass through `ToolGateway`, which validates arguments, enforces the tool-call budget, records the call, executes the simulator, and appends audit data. A critical tool is first recorded as `NOT_EXECUTED` with a pending `Approval`.
+Read and safe-write tools pass through `ToolGateway`, which applies strict per-tool Pydantic schemas, rejects unknown fields and coercion, enforces allowlists and the tool-call budget, records the call, executes the simulator, and appends audit data. A critical tool is first recorded as `NOT_EXECUTED` with a pending `Approval`.
 
-The approval stores the incident, tool-call ID, canonical arguments hash, rationale, evidence, impact, status, and expiration. On approval, the permission engine rechecks the binding. The gateway consumes the approval before attempting the simulated side effect, preventing replay even when execution fails. Rejection leaves the call `NOT_EXECUTED` and escalates the incident.
+The approval stores the incident, tool-call ID, canonical arguments hash, rationale, evidence, impact, status, and expiration. On execution, the gateway reloads the authoritative repository object, revalidates the canonical tool arguments and risk, and the permission engine rechecks the binding. The gateway consumes the approval before attempting the simulated side effect, preventing replay even when execution fails. Rejection leaves the call `NOT_EXECUTED` and escalates the incident.
 
 The standalone NovaPay MCP server is a protocol surface, not an alternate authorization path. Its critical functions return a proposal with `REQUIRE_APPROVAL` and never execute the action.
 
@@ -68,7 +68,7 @@ Workflow events are published to incident-owned queues and delivered through cur
 
 ## Evaluation obligations
 
-The 40-case deterministic suite covers multiple incident families, five prompt-injection cases, five insufficient-evidence cases, tool selection, evidence recall, approval bypass, and unauthorized critical execution. Prompt, model, provider, tool, orchestration, or evidence-contract changes require an evaluation run and comparison with `evals/results/latest.json`.
+The 40-case deterministic suite covers multiple incident families, five prompt-injection cases, five insufficient-evidence cases, tool selection, evidence recall, approval bypass, and unauthorized critical execution. Approval-required and injection cases actively call the real application gateway without approval; they do not infer a security result from fixture metadata. Prompt, model, provider, tool, orchestration, or evidence-contract changes require an evaluation run and comparison with `evals/results/latest.json`.
 
 One false-correlation regression is deliberately visible. It is evidence to investigate, not a result to hide.
 
