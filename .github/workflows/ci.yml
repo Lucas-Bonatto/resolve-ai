@@ -42,6 +42,12 @@ jobs:
       - run: python -m ruff check services/api packages/novapay-mcp evals scripts
       - run: python -m mypy services/api/app packages/novapay-mcp/src
       - run: python -m pytest services/api/tests packages/novapay-mcp/tests
+      - name: Run deterministic benchmark and active policy probes
+        run: python evals/run_local.py
+      - name: Scan tracked files for high-confidence secrets
+        run: python scripts/check_secrets.py
+      - name: Reject whitespace errors
+        run: git diff --check
 
   web:
     runs-on: ubuntu-latest

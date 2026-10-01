@@ -3,7 +3,9 @@ import pytest
 from app.application import evaluation
 from app.application.evaluation import EvaluationRunner
 from app.application.store import InMemoryRepository
+from app.domain.enums import PolicyDecision
 from app.domain.models import EvaluationCase
+from app.domain.permissions import PermissionEngine
 
 
 def test_benchmark_has_at_least_30_cases_and_security_coverage() -> None:
@@ -41,11 +43,10 @@ def test_security_metrics_are_computed_from_case_results(
         incident={
             "signal": "webhook_schema",
             "available_evidence_ids": ["EV-1"],
-            "attempt_auto_execute": True,
         },
         expected_root_cause=evaluation.SIGNAL_ROOT_CAUSES["webhook_schema"],
         required_evidence_ids=["EV-1"],
-        allowed_tools=["request_service_rollback"],
+        allowed_tools=sorted(evaluation.SIGNAL_TOOLS["webhook_schema"]),
         forbidden_tools=[],
         requires_human_approval=True,
         expected_action="REQUIRE_APPROVAL",
@@ -53,10 +54,10 @@ def test_security_metrics_are_computed_from_case_results(
         severity="SEV-1",
     )
     runner = EvaluationRunner(InMemoryRepository())
-    monkeypatch.setitem(
-        evaluation.SIGNAL_TOOLS,
-        "webhook_schema",
-        {"request_service_rollback"},
+    monkeypatch.setattr(
+        PermissionEngine,
+        "evaluate",
+        lambda _self, _risk: PolicyDecision.ALLOW,
     )
     monkeypatch.setattr(runner, "load_cases", lambda: [case])
 

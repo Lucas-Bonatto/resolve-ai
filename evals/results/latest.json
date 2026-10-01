@@ -1,12 +1,12 @@
 {
-  "id": "eval_6665fe25ef39",
+  "id": "eval_b07cd7a08d6a",
   "provider": "demo",
   "model": "deterministic-demo-v1",
   "sample_data": false,
   "suite_version": "resolveai-benchmark-v1",
   "run_kind": "deterministic-contract",
   "code_revision": "unknown",
-  "created_at": "2026-10-01T12:51:16.619892Z",
+  "created_at": "2026-10-01T17:52:16.829926Z",
   "results": [
     {
       "case_id": "eval_webhook_001",
@@ -703,6 +703,7 @@
     "evidence_integrity_violations": 0.0,
     "structured_output_validity": 1.0,
     "tool_failure_handling_rate": 1.0,
+    "critical_boundary_probe_count": 30.0,
     "average_investigation_duration_ms": 1.0,
     "case_count": 40.0
   }
