@@ -85,4 +85,28 @@ async def test_unknown_agent_evidence_reference_fails_the_run() -> None:
     assert snapshot.incident.state == IncidentState.FAILED
     assert snapshot.diagnosis is None
     assert snapshot.run is not None
-    assert snapshot.run.error == "ValueError"
+    assert snapshot.run.error == "EvidenceIntegrityError"
+
+
+@pytest.mark.asyncio
+async def test_validation_failure_never_marks_incident_resolved() -> None:
+    repository = InMemoryRepository()
+    coordinator = IncidentCoordinator(
+        repository,
+        NovaPaySimulator(validation_should_fail=True),
+        DemoAIProvider(),
+    )
+    coordinator.delay = 0
+
+    incident = await coordinator.inject_flagship()
+    await coordinator._tasks[incident.id]
+    approval = repository.data(FLAGSHIP_ID).approval
+    assert approval is not None
+
+    await coordinator.approve(FLAGSHIP_ID, approval.id, "security-reviewer")
+    snapshot = repository.snapshot(FLAGSHIP_ID)
+    assert snapshot.incident.state == IncidentState.ESCALATED
+    assert snapshot.validation is not None
+    assert snapshot.validation.passed is False
+    assert snapshot.report is not None
+    assert snapshot.report.final_status == IncidentState.ESCALATED

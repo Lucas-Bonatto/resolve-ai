@@ -6,10 +6,11 @@ from hashlib import sha256
 from typing import Any
 from uuid import uuid4
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from .enums import (
     ApprovalStatus,
+    DiagnosisOutcome,
     EvidenceType,
     ExecutionStatus,
     IncidentState,
@@ -44,6 +45,7 @@ class Incident(StrictModel):
     affected_service: str
     affected_customers: int = 0
     execution_status: ExecutionStatus = ExecutionStatus.SIMULATED
+    correlation_id: str = Field(default_factory=lambda: new_id("corr"))
     created_at: datetime = Field(default_factory=utc_now)
     updated_at: datetime = Field(default_factory=utc_now)
 
@@ -57,6 +59,10 @@ class IncidentEvent(StrictModel):
     status: ExecutionStatus = ExecutionStatus.SIMULATED
     created_at: datetime = Field(default_factory=utc_now)
     metadata: dict[str, Any] = Field(default_factory=dict)
+    correlation_id: str
+    agent_run_id: str | None = None
+    tool_call_id: str | None = None
+    approval_id: str | None = None
 
 
 class Evidence(StrictModel):
@@ -69,6 +75,7 @@ class Evidence(StrictModel):
     raw_payload: dict[str, Any] = Field(default_factory=dict)
     created_at: datetime = Field(default_factory=utc_now)
     relevance: float = Field(ge=0, le=1)
+    correlation_id: str
 
 
 class Hypothesis(StrictModel):
@@ -81,9 +88,12 @@ class Hypothesis(StrictModel):
     evidence_against: list[str] = Field(default_factory=list)
     verification_strategy: str
     status: str = "OPEN"
+    created_at: datetime = Field(default_factory=utc_now)
+    updated_at: datetime = Field(default_factory=utc_now)
 
 
 class Diagnosis(StrictModel):
+    outcome: DiagnosisOutcome = DiagnosisOutcome.SUPPORTED_ROOT_CAUSE
     summary: str
     probable_root_cause: str
     confidence: float = Field(ge=0, le=1)
@@ -91,12 +101,15 @@ class Diagnosis(StrictModel):
     affected_services: list[str]
     recommended_next_step: str
 
-    @field_validator("evidence_ids")
-    @classmethod
-    def requires_evidence(cls, value: list[str]) -> list[str]:
-        if not value:
-            raise ValueError("A diagnosis must reference evidence")
-        return list(dict.fromkeys(value))
+    @model_validator(mode="after")
+    def validates_evidence_contract(self) -> Diagnosis:
+        self.evidence_ids = list(dict.fromkeys(self.evidence_ids))
+        if self.outcome == DiagnosisOutcome.SUPPORTED_ROOT_CAUSE and not self.evidence_ids:
+            raise ValueError("A supported diagnosis must reference evidence")
+        if self.outcome == DiagnosisOutcome.INSUFFICIENT_EVIDENCE:
+            self.probable_root_cause = DiagnosisOutcome.INSUFFICIENT_EVIDENCE
+            self.confidence = min(self.confidence, 0.25)
+        return self
 
 
 class RemediationStep(StrictModel):
@@ -123,6 +136,7 @@ class Approval(StrictModel):
     id: str = Field(default_factory=lambda: new_id("apr"))
     incident_id: str
     tool_call_id: str
+    tool_name: str
     requested_action: str
     arguments_hash: str
     reason: str
@@ -133,6 +147,9 @@ class Approval(StrictModel):
     approved_by: str | None = None
     approved_at: datetime | None = None
     status: ApprovalStatus = ApprovalStatus.PENDING
+    consumed_at: datetime | None = None
+    correlation_id: str
+    agent_run_id: str | None = None
 
 
 class ToolCall(StrictModel):
@@ -146,6 +163,8 @@ class ToolCall(StrictModel):
     duration_ms: int | None = None
     output_summary: str | None = None
     created_at: datetime = Field(default_factory=utc_now)
+    correlation_id: str
+    agent_run_id: str | None = None
 
 
 class AuditRecord(StrictModel):
@@ -159,6 +178,11 @@ class AuditRecord(StrictModel):
     result: str
     risk_level: ToolRiskLevel | None = None
     metadata: dict[str, Any] = Field(default_factory=dict)
+    correlation_id: str
+    incident_id: str | None = None
+    agent_run_id: str | None = None
+    tool_call_id: str | None = None
+    approval_id: str | None = None
 
 
 class AgentRun(StrictModel):
@@ -169,6 +193,7 @@ class AgentRun(StrictModel):
     workflow: str = "incident-coordinator"
     status: str = "RUNNING"
     trace_id: str = Field(default_factory=lambda: new_id("trace"))
+    correlation_id: str
     started_at: datetime = Field(default_factory=utc_now)
     completed_at: datetime | None = None
     tool_call_count: int = 0
@@ -176,6 +201,32 @@ class AgentRun(StrictModel):
     output_tokens: int | None = None
     estimated_cost_usd: float | None = None
     error: str | None = None
+
+
+class ValidationResult(StrictModel):
+    incident_id: str
+    passed: bool
+    summary: str
+    evidence_ids: list[str]
+    checks_passed: int = Field(ge=0)
+    checks_failed: int = Field(ge=0)
+    recovered_transactions: int = Field(ge=0)
+    created_at: datetime = Field(default_factory=utc_now)
+
+
+class IncidentReport(StrictModel):
+    incident_id: str
+    correlation_id: str
+    summary: str
+    timeline_event_ids: list[str]
+    evidence_ids: list[str]
+    hypothesis_ids: list[str]
+    diagnosis: Diagnosis | None
+    remediation_plan_id: str | None
+    approval_id: str | None
+    validation: ValidationResult | None
+    final_status: IncidentState
+    generated_at: datetime = Field(default_factory=utc_now)
 
 
 class IncidentSnapshot(StrictModel):
@@ -188,6 +239,8 @@ class IncidentSnapshot(StrictModel):
     approval: Approval | None
     tool_calls: list[ToolCall]
     run: AgentRun | None
+    validation: ValidationResult | None
+    report: IncidentReport | None
 
 
 class EvaluationCase(StrictModel):
@@ -215,6 +268,10 @@ class EvaluationCaseResult(StrictModel):
     prohibited_action_attempts: int
     approval_bypass_attempts: int
     unauthorized_critical_executions: int
+    prompt_injection_bypasses: int = 0
+    evidence_integrity_violations: int = 0
+    structured_output_valid: bool = True
+    tool_failure_handled: bool = True
     duration_ms: int
     failure_reason: str | None = None
 
@@ -224,6 +281,9 @@ class EvaluationRun(StrictModel):
     provider: str
     model: str
     sample_data: bool = False
+    suite_version: str = "resolveai-benchmark-v1"
+    run_kind: str = "deterministic-contract"
+    code_revision: str = "unknown"
     created_at: datetime = Field(default_factory=utc_now)
     results: list[EvaluationCaseResult]
     metrics: dict[str, float]

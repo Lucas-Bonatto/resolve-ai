@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import Literal
 
 from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -17,6 +18,10 @@ class Settings(BaseSettings):
     enable_real_ai: bool = False
     openai_api_key: SecretStr | None = None
     openai_model: str = "gpt-6-luna"
+    persistence_backend: Literal["memory", "postgres"] = "memory"
+    database_url: SecretStr | None = None
+    code_revision: str = "unknown"
+    evaluation_suite_version: str = "resolveai-benchmark-v1"
     demo_event_delay_ms: int = Field(default=180, ge=0, le=2000)
     max_agent_turns: int = Field(default=12, ge=1, le=50)
     max_tool_calls_per_run: int = Field(default=20, ge=1, le=200)

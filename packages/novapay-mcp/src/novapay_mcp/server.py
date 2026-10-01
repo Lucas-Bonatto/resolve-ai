@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from hashlib import sha256
 from typing import Any
+from uuid import uuid4
 
 from mcp.server import MCPServer
 
@@ -49,26 +50,34 @@ SERVICES = {
 }
 
 
-def _audit(tool: str, arguments: dict[str, Any]) -> dict[str, Any]:
+def _audit(tool: str, arguments: dict[str, Any], correlation_id: str) -> dict[str, Any]:
     canonical = repr(sorted(arguments.items())).encode()
     return {
         "event_id": f"mcp_audit_{sha256(tool.encode() + canonical).hexdigest()[:12]}",
         "tool": tool,
         "timestamp": datetime.now(UTC).isoformat(),
         "status": "SIMULATED",
+        "correlation_id": correlation_id,
     }
 
 
 def _result(
-    tool: str, data: Any, evidence_ids: list[str] | None = None
+    tool: str,
+    data: Any,
+    evidence_ids: list[str] | None = None,
+    correlation_id: str | None = None,
 ) -> dict[str, Any]:
+    resolved_correlation_id = correlation_id or f"mcp_corr_{uuid4().hex[:12]}"
     return {
         "tool": tool,
         "status": "success",
         "execution": "SIMULATED",
         "evidence_ids": evidence_ids or [],
+        "correlation_id": resolved_correlation_id,
         "data": data,
-        "audit": _audit(tool, {"evidence_ids": evidence_ids or []}),
+        "audit": _audit(
+            tool, {"evidence_ids": evidence_ids or []}, resolved_correlation_id
+        ),
     }
 
 

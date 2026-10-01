@@ -1,5 +1,7 @@
+import pytest
 from novapay_mcp.server import (
     get_service_health,
+    query_application_logs,
     request_service_rollback,
     search_transactions,
 )
@@ -17,9 +19,18 @@ def test_search_transactions_is_bounded() -> None:
 def test_provider_health_is_readable() -> None:
     result = get_service_health("payment-provider")
     assert result["data"]["status"] == "healthy"
+    assert result["correlation_id"].startswith("mcp_corr_")
+    assert result["audit"]["correlation_id"] == result["correlation_id"]
 
 
 def test_rollback_tool_only_requests_approval() -> None:
     result = request_service_rollback("webhook-worker", "dep_184", "dep_183")
     assert result["data"]["decision"] == "REQUIRE_APPROVAL"
     assert result["data"]["executed"] is False
+
+
+def test_log_query_rejects_unallowlisted_service_and_command_syntax() -> None:
+    with pytest.raises(ValueError, match="allowlisted"):
+        query_application_logs("arbitrary-production-host", "error")
+    with pytest.raises(ValueError, match="Unsafe"):
+        query_application_logs("webhook-worker", "error; rollback now")
