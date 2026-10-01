@@ -20,9 +20,33 @@ test("flagship incident pauses for approval and resolves only after approval", a
     exact: true,
   })).toBeVisible();
   await expect(page.getByRole("button", { name: "Approve" })).toBeVisible();
+
+  const beforeApproval = await request.get(`${api}/api/incidents/INC-2026-0042`);
+  const waiting = await beforeApproval.json();
+  const criticalCall = waiting.tool_calls.find(
+    (call: { risk_level: string }) => call.risk_level === "critical_write",
+  );
+  expect(criticalCall.status).toBe("NOT_EXECUTED");
+  expect(waiting.validation).toBeNull();
+
+  const approvalId = waiting.approval.id;
   await page.getByRole("button", { name: "Approve" }).click();
-  await expect(page.getByText("RESOLVED", { exact: true })).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByText("RESOLVED", { exact: true }).first()).toBeVisible({
+    timeout: 10_000,
+  });
   await expect(page.getByText("Post-remediation validation passed")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Incident report" })).toBeVisible();
+
+  const resolvedResponse = await request.get(`${api}/api/incidents/INC-2026-0042`);
+  const resolved = await resolvedResponse.json();
+  expect(resolved.approval.status).toBe("CONSUMED");
+  expect(resolved.validation.passed).toBe(true);
+  expect(resolved.report.final_status).toBe("RESOLVED");
+
+  const replay = await request.post(`${api}/api/approvals/${approvalId}/approve`, {
+    data: { actor: "replay-attempt" },
+  });
+  expect(replay.status()).toBe(409);
 });
 
 test("rejected critical action escalates without execution", async ({ page, request }) => {
@@ -35,10 +59,35 @@ test("rejected critical action escalates without execution", async ({ page, requ
   await expect(page.getByText("Decision: REJECTED")).toBeVisible();
 });
 
+test("approval remains inspectable and keyboard operable at narrow width", async ({
+  page,
+  request,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await request.post(`${api}/api/demo/reset`);
+  await request.post(`${api}/api/chaos/scenarios/payment-webhook-regression/inject`);
+  await waitForState(request, "AWAITING_APPROVAL");
+  await page.goto("/incidents/INC-2026-0042");
+
+  const approve = page.getByRole("button", { name: "Approve" });
+  await approve.scrollIntoViewIfNeeded();
+  await approve.focus();
+  await expect(approve).toBeFocused();
+  await expect(page.getByText("Critical write", { exact: true })).toBeVisible();
+});
+
 test("evaluation center executes and exposes the known regression", async ({ page }) => {
   await page.goto("/evals", { waitUntil: "domcontentloaded" });
   await page.getByRole("button", { name: "Run evaluation" }).click();
   await expect(page.getByText("Executed result")).toBeVisible({ timeout: 10_000 });
   await expect(page.getByText("eval_false_correlation_020")).toBeVisible();
-  await expect(page.getByText("0%", { exact: true }).first()).toBeVisible();
+  await expect(
+    page
+      .getByText("Scenario contract success")
+      .locator("..")
+      .getByText("97.5%", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("Unauthorized writes").locator("..").getByText("0", { exact: true }),
+  ).toBeVisible();
 });

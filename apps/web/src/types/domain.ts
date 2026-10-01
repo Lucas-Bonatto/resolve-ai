@@ -15,6 +15,7 @@ export interface Incident {
   affected_service: string;
   affected_customers: number;
   execution_status: ExecutionStatus;
+  correlation_id: string;
   created_at: string;
   updated_at: string;
 }
@@ -28,6 +29,10 @@ export interface IncidentEvent {
   status: ExecutionStatus;
   created_at: string;
   metadata: Record<string, unknown>;
+  correlation_id: string;
+  agent_run_id: string | null;
+  tool_call_id: string | null;
+  approval_id: string | null;
 }
 
 export interface Evidence {
@@ -40,6 +45,7 @@ export interface Evidence {
   raw_payload: Record<string, unknown>;
   created_at: string;
   relevance: number;
+  correlation_id: string;
 }
 
 export interface Hypothesis {
@@ -51,9 +57,12 @@ export interface Hypothesis {
   evidence_against: string[];
   verification_strategy: string;
   status: string;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface Diagnosis {
+  outcome: "SUPPORTED_ROOT_CAUSE" | "INSUFFICIENT_EVIDENCE";
   summary: string;
   probable_root_cause: string;
   confidence: number;
@@ -85,6 +94,7 @@ export interface Approval {
   id: string;
   incident_id: string;
   tool_call_id: string;
+  tool_name: string;
   requested_action: string;
   reason: string;
   evidence_ids: string[];
@@ -92,10 +102,14 @@ export interface Approval {
   expires_at: string;
   approved_by: string | null;
   status: "PENDING" | "APPROVED" | "REJECTED" | "EXPIRED" | "CONSUMED";
+  consumed_at: string | null;
+  correlation_id: string;
+  agent_run_id: string | null;
 }
 
 export interface ToolCall {
   id: string;
+  incident_id: string;
   tool_name: string;
   arguments: Record<string, unknown>;
   risk_level: RiskLevel;
@@ -104,6 +118,8 @@ export interface ToolCall {
   duration_ms: number | null;
   output_summary: string | null;
   created_at: string;
+  correlation_id: string;
+  agent_run_id: string | null;
 }
 
 export interface AgentRun {
@@ -114,6 +130,7 @@ export interface AgentRun {
   workflow: string;
   status: string;
   trace_id: string;
+  correlation_id: string;
   started_at: string;
   completed_at: string | null;
   tool_call_count: number;
@@ -121,6 +138,32 @@ export interface AgentRun {
   output_tokens: number | null;
   estimated_cost_usd: number | null;
   error: string | null;
+}
+
+export interface ValidationResult {
+  incident_id: string;
+  passed: boolean;
+  summary: string;
+  evidence_ids: string[];
+  checks_passed: number;
+  checks_failed: number;
+  recovered_transactions: number;
+  created_at: string;
+}
+
+export interface IncidentReport {
+  incident_id: string;
+  correlation_id: string;
+  summary: string;
+  timeline_event_ids: string[];
+  evidence_ids: string[];
+  hypothesis_ids: string[];
+  diagnosis: Diagnosis | null;
+  remediation_plan_id: string | null;
+  approval_id: string | null;
+  validation: ValidationResult | null;
+  final_status: IncidentState;
+  generated_at: string;
 }
 
 export interface IncidentSnapshot {
@@ -133,6 +176,8 @@ export interface IncidentSnapshot {
   approval: Approval | null;
   tool_calls: ToolCall[];
   run: AgentRun | null;
+  validation: ValidationResult | null;
+  report: IncidentReport | null;
 }
 
 export interface EvaluationRun {
@@ -140,6 +185,9 @@ export interface EvaluationRun {
   provider: string;
   model: string;
   sample_data: boolean;
+  suite_version: string;
+  run_kind: string;
+  code_revision: string;
   created_at: string;
   metrics: Record<string, number>;
   results: Array<{
@@ -148,5 +196,9 @@ export interface EvaluationRun {
     failure_reason: string | null;
     evidence_recall: number;
     unauthorized_critical_executions: number;
+    prompt_injection_bypasses: number;
+    evidence_integrity_violations: number;
+    structured_output_valid: boolean;
+    tool_failure_handled: boolean;
   }>;
 }
