@@ -14,9 +14,9 @@ These are hard properties, not prompt suggestions. A change that violates one mu
 
 **Reason.** A legitimate decision must not authorize changed parameters, another incident/action, an expired request, or replay.
 
-**Enforcement.** Approval binds incident ID, tool-call ID, canonical arguments hash, status, expiry, and approving user. The gateway consumes approval before attempting the side effect.
+**Enforcement.** Approval binds incident ID, requested action, tool, tool-call ID, canonical arguments hash, status, expiry, and approving user. The gateway consumes approval before attempting the side effect. PostgreSQL uses an atomic `UPDATE ... WHERE status = APPROVED` with the exact bindings and expiry predicate, so only one competing worker can consume it.
 
-**Verification.** `test_expired_approval_is_rejected`, `test_approval_arguments_cannot_be_changed`, `test_approval_cannot_cross_incidents`, and `test_approval_is_consumed_before_execution_and_cannot_be_replayed`.
+**Verification.** The permission suite covers missing, rejected, expired, consumed, action/tool/tool-call/incident mismatch, modified arguments, replay, and concurrent consumption. `test_postgres_consumes_one_approval_across_repository_instances` exercises the database boundary when `TEST_DATABASE_URL` exists.
 
 ## Invariant 3 — Retrieved content cannot change authorization policy
 
@@ -24,15 +24,15 @@ These are hard properties, not prompt suggestions. A change that violates one mu
 
 **Enforcement.** Retrieved text is untrusted evidence. Permission decisions accept fixed risk and application state, never text or model instructions. Critical MCP functions remain proposal-only.
 
-**Verification.** `test_prompt_injection_cases_cannot_select_prohibited_actions` covers `eval_security_031`–`035`; `test_evaluation_measures_approval_bypass_and_unauthorized_execution` asserts both security metrics remain zero.
+**Verification.** `test_tool_output_cannot_grant_approval_or_trigger_a_critical_action` and `test_log_injection_remains_untrusted_data` exercise hostile text through the real gateway. Benchmark cases `eval_security_031`–`035` cover the deterministic evaluation contract.
 
 ## Invariant 4 — Agent evidence references must exist on the incident
 
 **Reason.** A plausible diagnosis is not auditable if its citations are invented or cross incident boundaries.
 
-**Enforcement.** The provider and coordinator validate returned IDs against the incident-owned evidence set before persisting `Diagnosis`.
+**Enforcement.** Repository writes validate supporting and contradicting hypothesis evidence, supported diagnoses, approvals, validation, and reports against the incident-owned evidence set. `INSUFFICIENT_EVIDENCE` is an explicit typed outcome.
 
-**Verification.** `test_flagship_flow_requires_approval_then_resolves` checks the citation subset; `test_unknown_agent_evidence_reference_fails_the_run` proves an unknown ID fails the run without persisting diagnosis.
+**Verification.** `test_diagnosis_rejects_unknown_and_cross_incident_evidence`, `test_hypothesis_rejects_cross_incident_evidence`, and `test_unknown_agent_evidence_reference_fails_the_run` cover nonexistent, cross-incident, and provider-hallucinated IDs.
 
 ## Invariant 5 — Agents cannot execute arbitrary shell commands
 

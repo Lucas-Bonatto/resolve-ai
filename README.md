@@ -13,7 +13,7 @@ The application is intentionally honest about execution: the public experience u
 - A full incident state machine from `NEW` to `RESOLVED`, including rejection and failure branches.
 - Every diagnosis cites evidence IDs owned by the incident.
 - Read tools can run automatically; critical writes fail closed and require an expiring approval.
-- Approvals are bound to incident ID, tool-call ID, reviewer, expiration, and a canonical hash of the exact arguments.
+- Approvals are bound to incident, requested action, tool, tool call, expiry, reviewer, and a canonical hash of the exact arguments. Consumption is atomic in PostgreSQL.
 - A standalone typed MCP server exposes 14 bounded NovaPay operations.
 - Forty executable evaluation cases cover diagnosis quality, insufficient evidence, injection resistance, and approval bypass.
 - UI results distinguish `SIMULATED`, `EXECUTED`, and `NOT_EXECUTED` behavior.
@@ -33,6 +33,7 @@ flowchart LR
   E -->|critical write| H[Exact-action approval]
   H --> N
   A --> V[Evaluation runner]
+  A --> R[(PostgreSQL production repository)]
   M[Standalone MCP server] --> F[Fictional NovaPay contract]
   N --> F
 ```
@@ -67,7 +68,9 @@ Open [http://localhost:3000](http://localhost:3000), launch the flagship inciden
 docker compose up --build
 ```
 
-The web app is available on port 3000 and the API/OpenAPI UI on ports 8000 and 8000/docs. PostgreSQL starts as the documented durable schema target; the interactive demo still uses its resettable in-memory repository by design.
+The web app is available on port 3000 and the API/OpenAPI UI on ports 8000 and 8000/docs. Compose applies the Alembic migrations and starts the API with the PostgreSQL repository. The non-Docker quick start keeps `PERSISTENCE_BACKEND=memory` for a resettable, no-dependency demo.
+
+To run the API against an existing PostgreSQL instance without Compose, set `PERSISTENCE_BACKEND=postgres` and `DATABASE_URL`, apply `alembic upgrade head` from `services/api`, and then start the API. Do not use the placeholder Compose password outside local development.
 
 ## Optional OpenAI provider
 
@@ -81,6 +84,15 @@ OPENAI_MODEL=gpt-6-luna
 ```
 
 The provider returns the same Pydantic `Diagnosis` contract as demo mode. Tool authorization, evidence ownership, timeouts, and approval enforcement remain server-side. See [agent behavior](docs/agents.md).
+
+An explicitly authorized live smoke test is available and is never part of baseline CI:
+
+```powershell
+$env:RUN_OPENAI_LIVE_SMOKE="1"
+$env:AI_PROVIDER="openai"
+$env:ENABLE_REAL_AI="true"
+.\.venv\Scripts\python.exe -m pytest services/api/tests/test_openai_live.py -m live
+```
 
 ## Verification
 
@@ -100,7 +112,7 @@ npm run build
 npm run test:e2e
 ```
 
-Run the benchmark directly with `python evals/run_local.py`, or execute it from the Evaluation Center. The deliberately retained false-correlation case makes regressions visible instead of manufacturing a perfect score.
+Run the benchmark directly with `.\.venv\Scripts\python.exe evals/run_local.py`, or execute it from the Evaluation Center. The historical 97.5% is a deterministic scenario-contract result (39/40), not OpenAI model accuracy. The deliberately retained `eval_false_correlation_020` failure remains visible.
 
 ## Repository map
 
@@ -115,7 +127,7 @@ docs/                     Architecture, security, demo, ADRs, and launch notes
 
 ## Project posture
 
-This repository demonstrates secure orchestration patterns; it is not a claim that an autonomous system should receive unrestricted production access. The default store is intentionally ephemeral, authentication is not implemented for the local portfolio demo, and live GitHub writes are disabled. Read [project status](PROJECT_STATUS.md) before adapting it for a hosted or multi-user environment.
+This repository demonstrates secure orchestration patterns; it is not a claim that an autonomous system should receive unrestricted production access. The default no-dependency store is intentionally ephemeral, PostgreSQL is opt-in (and used by Compose), authentication is not implemented for the local portfolio demo, and live GitHub writes are disabled. Read [project status](PROJECT_STATUS.md) before adapting it for a hosted or multi-user environment.
 
 ## Contributing and security
 

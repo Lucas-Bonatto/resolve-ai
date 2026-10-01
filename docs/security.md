@@ -10,9 +10,9 @@ The central boundary is simple: the model proposes, the application authorizes, 
 
 | Threat | Control | Verification |
 | --- | --- | --- |
-| Prompt injection in logs or retrieved text | Data is delimited; permission logic cannot be changed by prompt text | Five injection benchmark cases |
+| Prompt injection in logs or retrieved text | Data is delimited; permission logic cannot be changed by prompt text | Adversarial gateway tests and five benchmark cases |
 | Critical action without consent | Fail-closed risk policy and exact-action approval | Unit and browser rejection tests |
-| Approval replay or argument substitution | Incident/tool-call binding, canonical argument hash, expiration, one-time decision | Permission tests |
+| Approval replay or argument substitution | Exact incident/action/tool/tool-call binding, canonical argument hash, expiration, atomic PostgreSQL consumption | Permission and PostgreSQL concurrency tests |
 | Fabricated evidence | Diagnosis evidence IDs are checked against incident-owned records | Orchestrator tests |
 | Cross-incident access | Repository and gateway calls are scoped by incident | Typed repository boundaries |
 | Arbitrary SQL, shell, or network behavior | No general-purpose execution tool; all tools have bounded schemas | Tool catalog review |
@@ -32,4 +32,4 @@ The testable hard properties and their current verification are cataloged in [se
 
 ## Production gaps
 
-The portfolio demo is not an internet-facing control plane. Production adoption requires authentication, authorization, tenant isolation, PostgreSQL repository implementation, encrypted secret storage, network egress rules, rate limits, idempotency across processes, tamper-evident audit export, retention controls, observability, and incident-response ownership.
+The portfolio demo is not an internet-facing control plane. Production adoption still requires authentication, tenant-aware authorization, encrypted secret storage, network egress rules, rate limits, durable cross-process event delivery, tamper-evident audit export, retention controls, production telemetry export, and incident-response ownership.

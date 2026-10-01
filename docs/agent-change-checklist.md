@@ -54,3 +54,14 @@ Use this checklist for changes to providers, prompts, tools, orchestration, stru
 
 - [ ] Operators can still reject critical actions.
 - [ ] Approval is incident/tool-call/arguments/expiry/user bound and cannot be replayed.
+
+## Phase 3 product-proof review — 2026-10-01
+
+- [x] Prompt treats retrieved records as untrusted and does not authorize actions.
+- [x] Diagnosis, validation, and report outputs are typed; unknown evidence fails observably.
+- [x] Critical risk remained fixed and exact-action approval is backend enforced.
+- [x] Full deterministic benchmark and security subset were run; the known failure stayed visible.
+- [x] Turn, tool-call, and investigation-time limits remain enforced.
+- [x] Timeout, provider unavailability, tool failure, rejection, insufficient evidence, and failed validation have safe outcomes.
+- [x] Frontend and backend public contracts were updated together.
+- [x] Optional live-provider smoke remains opt-in and secret-safe.

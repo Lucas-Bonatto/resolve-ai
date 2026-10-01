@@ -14,25 +14,26 @@
 - Phase 9: unit, typing, lint, build, component, and critical browser verification
 - Phase 10: Docker, CI, open-source policy, launch, and operator documentation
 - Phase 11: repository engineering constitution, security invariants, codebase map, task/PR templates, and task-specific Definition of Done
+- Product Proof: PostgreSQL repository, reproducible migrations, atomic approval consumption, evidence integrity, correlation IDs, validation/reporting, adversarial security tests, and provider-aware evaluation metadata
 
 ## Next
 
 - Capture demo media and deploy the public demo
-- Add an optional persistent PostgreSQL repository for hosted multi-user operation
 - Calibrate real-provider confidence on a larger private evaluation set
 - Add authentication and tenant-aware authorization before any public multi-user deployment
+- Add durable cross-process event delivery before horizontally scaling SSE workers
 
 ## Known limitations
 
-- The default public experience is a deterministic single-process demo; durable PostgreSQL deployment is documented but not required for local exploration.
+- The no-dependency default remains a deterministic single-process in-memory demo. Compose selects PostgreSQL; horizontal workers still need a durable event bus for cross-process SSE delivery.
 - GitHub writes are mock-only unless an allowlisted live adapter is explicitly configured.
 - Model confidence is a heuristic, not a calibrated probability.
-- A live OpenAI provider smoke test reached the API on 2026-09-30 but returned `credit_balance_exhausted`; the real-provider result is therefore `NOT_EXECUTED` until account credits are available.
-- Structured audit records exist, but production log export and correlation-ID middleware are not yet implemented.
+- A live OpenAI provider smoke test reached the API on 2026-10-01 but returned `credit_balance_exhausted`; the real-provider result is therefore `NOT_EXECUTED` until account credits are available.
+- Correlation IDs and structured audit records are implemented; production log export and tamper-evident archival are not.
 
 ## Important decisions
 
 - App-owned orchestration with the OpenAI Agents SDK keeps authorization and persistence under server control.
 - Server-Sent Events provide one-way live workflow updates with less operational complexity than WebSockets.
 - Full-text search is sufficient for the small fictional knowledge base; vector infrastructure would not improve the demo materially.
-- Approval is consumed in the gateway before side-effect execution, and configured turn/tool/time budgets fail closed.
+- Approval is consumed in the gateway before side-effect execution; PostgreSQL uses a status-predicate atomic update so competing workers cannot consume one approval twice.

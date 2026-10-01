@@ -16,6 +16,8 @@ flowchart LR
     E -->|critical write| H[Approval Gateway]
     H --> N
     A --> R[(Repository)]
+    R --> IM[In-memory demo adapter]
+    R --> PG[(PostgreSQL production adapter)]
     A --> V[Evaluation Runner]
     M[NovaPay MCP Server] --> F[Fictional NovaPay Contract]
     N --> F
@@ -37,16 +39,22 @@ stateDiagram-v2
     AWAITING_APPROVAL --> ESCALATED: rejected/expired
     EXECUTING --> VALIDATING
     VALIDATING --> RESOLVED: checks pass
-    VALIDATING --> FAILED: checks fail
+    VALIDATING --> ESCALATED: checks fail
 ```
 
 ## Trust boundaries
 
-The model proposes; the application authorizes. Tool arguments are validated before policy evaluation. An approval stores a hash of canonical arguments and cannot authorize a changed tool call, another incident, an expired request, or a replay. Evidence IDs in model output are checked against incident-owned evidence. Retrieved text is delimited and treated as untrusted.
+The model proposes; the application authorizes. Tool arguments are validated before policy evaluation. An approval binds the requested action, tool, tool call, incident, and canonical argument hash and cannot authorize an expired request or replay. PostgreSQL consumes the approval with one conditional update before the side effect. Evidence IDs in model output are checked against incident-owned evidence. Retrieved text is delimited and treated as untrusted.
 
 ## Data strategy
 
-The interactive local demo intentionally uses an isolated `InMemoryRepository` so reset is immediate and repeatable. A PostgreSQL schema and migration document the intended production persistence contract, but a PostgreSQL repository adapter does not yet exist. This is an explicit demo/runtime distinction, not a claim of production durability.
+`InMemoryRepository` remains the explicit no-dependency demo/test adapter. `PostgresRepository` is the production persistence implementation and writes incidents, events, evidence, hypotheses, diagnoses, plans, tool calls, approvals, agent runs, audit history, validation, reports, and evaluation runs. It rehydrates state on startup. Compose selects it with `PERSISTENCE_BACKEND=postgres`; the default local configuration remains `memory`.
+
+The coordinator keeps an in-process subscriber cache for SSE. PostgreSQL is the system of record, but horizontal event fan-out is not implemented; a hosted multi-worker deployment must add durable event delivery before scaling the realtime path.
+
+## Traceability
+
+The HTTP middleware accepts a valid caller correlation ID or creates one server-side. The incident carries it through events, runs, tool calls, approvals, audit records, validation, and the final report. MCP responses create their own server-side correlation ID and include it in their audit envelope. Structured logs record identifiers and safe metadata, never raw prompts, keys, or unrestricted payloads.
 
 ## MCP relationship
 
