@@ -598,10 +598,25 @@ class PostgresRepository(InMemoryRepository):
         )
 
     def save_approval(self, approval: Approval) -> None:
+        if approval.status in {ApprovalStatus.APPROVED, ApprovalStatus.REJECTED}:
+            allowed_current_statuses = [ApprovalStatus.PENDING.value]
+        elif approval.status == ApprovalStatus.EXPIRED:
+            allowed_current_statuses = [
+                ApprovalStatus.PENDING.value,
+                ApprovalStatus.APPROVED.value,
+            ]
+        else:
+            raise ApprovalInvalid(
+                "Approval decisions must move from pending to approved, rejected, or expired"
+            )
         with self.engine.begin() as connection:
-            connection.execute(
+            result = connection.execute(
                 update(ApprovalRow)
-                .where(ApprovalRow.id == approval.id)
+                .where(
+                    ApprovalRow.id == approval.id,
+                    ApprovalRow.incident_id == approval.incident_id,
+                    ApprovalRow.status.in_(allowed_current_statuses),
+                )
                 .values(
                     status=_value(approval.status),
                     approved_by=approval.approved_by,
@@ -609,6 +624,8 @@ class PostgresRepository(InMemoryRepository):
                     consumed_at=approval.consumed_at,
                 )
             )
+            if result.rowcount != 1:
+                raise ApprovalInvalid("Approval is stale, invalid, or already decided")
         super().save_approval(approval)
 
     def consume_approval(self, approval: Approval) -> None:

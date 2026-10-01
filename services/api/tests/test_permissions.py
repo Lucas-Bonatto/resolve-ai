@@ -6,9 +6,9 @@ import pytest
 from app.application.simulator import NovaPaySimulator
 from app.application.store import InMemoryRepository
 from app.config import settings
-from app.domain.enums import ApprovalStatus, EvidenceType, Severity
+from app.domain.enums import ApprovalStatus, EvidenceType, Severity, ToolRiskLevel
 from app.domain.errors import ApprovalInvalid, ToolExecutionFailed
-from app.domain.models import Approval, Evidence, Incident, utc_now
+from app.domain.models import Approval, Evidence, Incident, ToolCall, arguments_hash, utc_now
 from app.tools.gateway import ToolGateway
 
 
@@ -96,6 +96,57 @@ def test_approval_arguments_cannot_be_changed() -> None:
         gateway.execute_approved(approval)
 
 
+@pytest.mark.parametrize(
+    "mutated_arguments",
+    [
+        {
+            "service": "webhook-worker",
+            "deployment_id": "dep_184",
+            "target_deployment": "dep_183",
+            "authorization": "approved",
+        },
+        {
+            "service": "WEBHOOK-WORKER",
+            "deployment_id": "dep_184",
+            "target_deployment": "dep_183",
+        },
+        {
+            "service": "webhook-worker",
+            "deployment_id": "dep_184",
+            "target_deployment": 183,
+        },
+    ],
+)
+def test_hidden_argument_mutations_fail_closed(
+    mutated_arguments: dict[str, object],
+) -> None:
+    repository, gateway, _, call, approval = proposed()
+    mark_approved(approval)
+    repository.data(call.incident_id).tool_calls[0] = call.model_copy(
+        update={"arguments": mutated_arguments}
+    )
+
+    with pytest.raises(ApprovalInvalid, match="changed"):
+        gateway.execute_approved(approval)
+
+    assert gateway.simulator.deployment_active == "dep_184"
+
+
+def test_argument_hash_is_stable_across_object_key_order() -> None:
+    first = {
+        "service": "webhook-worker",
+        "deployment_id": "dep_184",
+        "target_deployment": "dep_183",
+    }
+    reordered = {
+        "target_deployment": "dep_183",
+        "deployment_id": "dep_184",
+        "service": "webhook-worker",
+    }
+
+    assert arguments_hash(first) == arguments_hash(reordered)
+
+
 def test_approval_is_consumed_before_execution_and_cannot_be_replayed() -> None:
     _, gateway, _, _, approval = proposed()
     mark_approved(approval)
@@ -166,6 +217,38 @@ def test_approval_cannot_authorize_a_different_requested_action() -> None:
         gateway.execute_approved(approval)
 
 
+def test_forged_approval_object_cannot_redirect_an_approved_action() -> None:
+    repository, gateway, _, _, approval = proposed()
+    mark_approved(approval)
+    forged_arguments = {
+        "service": "webhook-worker",
+        "deployment_id": "dep_184",
+        "target_deployment": "dep_999",
+    }
+    forged_call = ToolCall(
+        incident_id=approval.incident_id,
+        tool_name="request_service_rollback",
+        arguments=forged_arguments,
+        risk_level=ToolRiskLevel.CRITICAL_WRITE,
+        correlation_id=repository.data(approval.incident_id).incident.correlation_id,
+    )
+    repository.add_tool_call(forged_call)
+    forged_approval = approval.model_copy(
+        deep=True,
+        update={
+            "tool_call_id": forged_call.id,
+            "requested_action": "Rollback webhook-worker to dep_999",
+            "arguments_hash": arguments_hash(forged_arguments),
+        },
+    )
+
+    with pytest.raises(ApprovalInvalid, match="authoritative"):
+        gateway.execute_approved(forged_approval)
+
+    assert gateway.simulator.deployment_active == "dep_184"
+    assert approval.status == ApprovalStatus.APPROVED
+
+
 def test_missing_approved_tool_call_is_blocked() -> None:
     repository, gateway, _, _, approval = proposed()
     mark_approved(approval)
@@ -198,6 +281,39 @@ def test_unauthorized_service_is_rejected() -> None:
     with pytest.raises(ToolExecutionFailed, match="allowlist"):
         gateway.execute_safe(
             "INC-TEST-1", "get_service_health", {"service": "arbitrary-production-host"}
+        )
+
+
+def test_tool_schemas_reject_unknown_fields_and_type_coercion() -> None:
+    _, gateway = setup_gateway()
+    with pytest.raises(ToolExecutionFailed, match="strict schema"):
+        gateway.execute_safe(
+            "INC-TEST-1",
+            "get_service_health",
+            {"service": "webhook-worker", "approved": True},
+        )
+    with pytest.raises(ToolExecutionFailed, match="strict schema"):
+        gateway.execute_safe(
+            "INC-TEST-1",
+            "search_transactions",
+            {"limit": "50"},
+        )
+
+
+def test_critical_tool_rejects_unallowlisted_deployment() -> None:
+    _, gateway = setup_gateway()
+    with pytest.raises(ToolExecutionFailed, match="Deployment.*allowlist"):
+        gateway.propose_critical(
+            "INC-TEST-1",
+            "request_service_rollback",
+            {
+                "service": "webhook-worker",
+                "deployment_id": "dep_184",
+                "target_deployment": "dep_999",
+            },
+            reason="Must fail closed",
+            evidence_ids=["TEST-1"],
+            impact="None",
         )
 
 

@@ -149,11 +149,19 @@ class IncidentCoordinator:
                 "Incident Coordinator started an evidence-first run.",
             )
 
-            await self._tool_event(
+            transaction_call, transaction_output = await self._tool_event(
                 incident_id,
                 "search_transactions",
                 {"status": "pending", "provider_status": "approved", "limit": 50},
             )
+            transaction_count = transaction_output.get("count")
+            if (
+                not isinstance(transaction_count, int)
+                or transaction_count <= 0
+                or transaction_output.get("provider_status") != "approved"
+                or transaction_output.get("novapay_status") != "pending"
+            ):
+                raise ToolExecutionFailed("Transaction evidence is unavailable")
             self._add_evidence(
                 Evidence(
                     id="TXN-901",
@@ -161,27 +169,36 @@ class IncidentCoordinator:
                     source_type=EvidenceType.TRANSACTION,
                     source_reference="txn_901",
                     title="Affected transaction sample",
-                    summary="37 transactions are approved by the provider but pending in NovaPay.",
-                    raw_payload={"count": 37, "sample": ["txn_901", "txn_912", "txn_933"]},
+                    summary=(
+                        f"{transaction_count} transactions are approved by the provider "
+                        "but pending in NovaPay."
+                    ),
+                    raw_payload=transaction_output,
                     relevance=0.84,
                     correlation_id=data.incident.correlation_id,
                 )
             )
+            self._link_tool_evidence(transaction_call, ["TXN-901"])
             await self._emit(
                 incident_id,
                 "evidence.created",
                 "Affected transactions identified",
-                "37 correlated transactions added as evidence.",
+                f"{transaction_count} correlated transactions added as evidence.",
                 {"evidence_ids": ["TXN-901"]},
             )
 
-            await self._tool_event(
+            health_call, health_output = await self._tool_event(
                 incident_id,
                 "get_service_health",
                 {"service": "payment-provider"},
             )
-            self._add_evidence(
-                Evidence(
+            provider_healthy = (
+                health_output.get("status") == "healthy"
+                and isinstance(health_output.get("availability"), (int, float))
+            )
+            provider_evidence_ids: list[str] = []
+            if provider_healthy:
+                provider_evidence = Evidence(
                     id="METRIC-PROVIDER-01",
                     incident_id=incident_id,
                     source_type=EvidenceType.SERVICE_METRIC,
@@ -190,30 +207,40 @@ class IncidentCoordinator:
                     summary=(
                         "The payment provider reports normal health during the incident window."
                     ),
-                    raw_payload={"status": "healthy", "availability": 0.9998},
+                    raw_payload=health_output,
                     relevance=0.71,
                     correlation_id=data.incident.correlation_id,
                 )
-            )
+                self._add_evidence(provider_evidence)
+                provider_evidence_ids.append(provider_evidence.id)
+                self._link_tool_evidence(health_call, provider_evidence_ids)
             self.repository.add_hypothesis(
                 Hypothesis(
                     incident_id=incident_id,
                     title="Payment provider outage",
                     description="The external provider may not be confirming payments.",
-                    confidence=0.24,
-                    evidence_against=["METRIC-PROVIDER-01"],
+                    confidence=0.24 if provider_healthy else 0.5,
+                    evidence_against=provider_evidence_ids,
                     verification_strategy="Compare provider health and transaction receipts.",
-                    status="WEAKENED",
+                    status="WEAKENED" if provider_healthy else "OPEN",
                 )
             )
             await self._emit(
                 incident_id,
                 "hypothesis.created",
-                "Provider outage hypothesis weakened",
-                "Provider health is normal; confidence reduced to low.",
+                (
+                    "Provider outage hypothesis weakened"
+                    if provider_healthy
+                    else "Provider outage hypothesis remains open"
+                ),
+                (
+                    "Provider health is normal; confidence reduced to low."
+                    if provider_healthy
+                    else "No trusted health signal was available to weaken this hypothesis."
+                ),
             )
 
-            await self._tool_event(
+            logs_call, logs_output = await self._tool_event(
                 incident_id,
                 "query_application_logs",
                 {
@@ -222,52 +249,71 @@ class IncidentCoordinator:
                     "limit": 100,
                 },
             )
-            for evidence in (
-                Evidence(
-                    id="LOG-291",
-                    incident_id=incident_id,
-                    source_type=EvidenceType.LOG,
-                    source_reference="log_00291",
-                    title="Webhook schema validation failure",
-                    summary=(
-                        "The worker rejects payment.approved events because paymentStatus "
-                        "is not permitted."
-                    ),
-                    raw_payload={
-                        "level": "error",
-                        "message": "ValidationError: field paymentStatus not permitted",
-                    },
-                    relevance=0.96,
-                    correlation_id=data.incident.correlation_id,
-                ),
-                Evidence(
-                    id="LOG-294",
-                    incident_id=incident_id,
-                    source_type=EvidenceType.LOG,
-                    source_reference="log_00294",
-                    title="Failure window correlation",
-                    summary="Validation failures began four minutes after dep_184.",
-                    raw_payload={"first_seen": "2026-09-30T12:45:04Z", "count": 142},
-                    relevance=0.94,
-                    correlation_id=data.incident.correlation_id,
-                ),
+            log_evidence_ids: list[str] = []
+            if (
+                isinstance(logs_output.get("matches"), int)
+                and logs_output["matches"] > 0
+                and isinstance(logs_output.get("pattern"), str)
+                and "paymentStatus" in logs_output["pattern"]
+                and isinstance(logs_output.get("first_seen"), str)
             ):
-                self._add_evidence(evidence)
-            await self._emit(
-                incident_id,
-                "evidence.created",
-                "Error pattern identified",
-                "Schema validation errors began inside the deployment window.",
-                {"evidence_ids": ["LOG-291", "LOG-294"]},
-            )
+                for evidence in (
+                    Evidence(
+                        id="LOG-291",
+                        incident_id=incident_id,
+                        source_type=EvidenceType.LOG,
+                        source_reference="log_00291",
+                        title="Webhook schema validation failure",
+                        summary=str(logs_output["pattern"]),
+                        raw_payload=logs_output,
+                        relevance=0.96,
+                        correlation_id=data.incident.correlation_id,
+                    ),
+                    Evidence(
+                        id="LOG-294",
+                        incident_id=incident_id,
+                        source_type=EvidenceType.LOG,
+                        source_reference="log_00294",
+                        title="Failure window correlation",
+                        summary="Validation failures began inside the deployment window.",
+                        raw_payload=logs_output,
+                        relevance=0.94,
+                        correlation_id=data.incident.correlation_id,
+                    ),
+                ):
+                    self._add_evidence(evidence)
+                    log_evidence_ids.append(evidence.id)
+                self._link_tool_evidence(logs_call, log_evidence_ids)
+                await self._emit(
+                    incident_id,
+                    "evidence.created",
+                    "Error pattern identified",
+                    "Schema validation errors began inside the deployment window.",
+                    {"evidence_ids": log_evidence_ids},
+                )
 
-            await self._tool_event(
+            deployment_call, deployment_output = await self._tool_event(
                 incident_id,
                 "get_recent_deployments",
                 {"service": "webhook-worker", "limit": 5},
             )
-            self._add_evidence(
-                Evidence(
+            deployments = deployment_output.get("deployments")
+            deployment = (
+                next(
+                    (
+                        item
+                        for item in deployments
+                        if isinstance(item, dict)
+                        and item.get("id") == "dep_184"
+                        and item.get("service") == "webhook-worker"
+                    ),
+                    None,
+                )
+                if isinstance(deployments, list)
+                else None
+            )
+            if deployment is not None:
+                deployment_evidence = Evidence(
                     id="DEPLOY-184",
                     incident_id=incident_id,
                     source_type=EvidenceType.DEPLOYMENT,
@@ -276,11 +322,18 @@ class IncidentCoordinator:
                     summary=(
                         "Deployment dep_184 changed the parser four minutes before failures began."
                     ),
-                    raw_payload={"commit": "7be91af", "previous": "dep_183"},
+                    raw_payload=deployment,
                     relevance=0.95,
                     correlation_id=data.incident.correlation_id,
                 )
-            )
+                self._add_evidence(deployment_evidence)
+                self._link_tool_evidence(deployment_call, [deployment_evidence.id])
+            owned_evidence = {item.id for item in data.evidence}
+            hypothesis_support = [
+                evidence_id
+                for evidence_id in ["LOG-291", "LOG-294", "DEPLOY-184"]
+                if evidence_id in owned_evidence
+            ]
             webhook_hypothesis = Hypothesis(
                 incident_id=incident_id,
                 title="Webhook schema regression",
@@ -288,10 +341,10 @@ class IncidentCoordinator:
                     "Deployment dep_184 removed compatibility for the provider's "
                     "paymentStatus field."
                 ),
-                confidence=0.68,
-                evidence_for=["LOG-291", "LOG-294", "DEPLOY-184"],
+                confidence=0.68 if len(hypothesis_support) == 3 else 0.25,
+                evidence_for=hypothesis_support,
                 verification_strategy="Run the legacy payload regression fixture.",
-                status="TESTING",
+                status="TESTING" if len(hypothesis_support) == 3 else "UNCONFIRMED",
             )
             self.repository.add_hypothesis(webhook_hypothesis)
             await self._emit(
@@ -301,33 +354,48 @@ class IncidentCoordinator:
                 "Deployment and log timing support a parser regression.",
             )
 
-            await self._tool_event(
+            regression_call, regression_output = await self._tool_event(
                 incident_id, "run_regression_test", {"fixture": "legacy-payment-approved-v2"}
             )
-            self._add_evidence(
-                Evidence(
+            regression_reproduced = (
+                regression_output.get("result") == "FAILED"
+                and regression_output.get("reproduced") is True
+            )
+            if regression_reproduced:
+                regression_evidence = Evidence(
                     id="TEST-012",
                     incident_id=incident_id,
                     source_type=EvidenceType.TEST_RESULT,
                     source_reference="test_legacy_payment_status_alias",
                     title="Regression reproduced",
                     summary="The controlled legacy payload fails on dep_184 and passes on dep_183.",
-                    raw_payload={"dep_184": "failed", "dep_183": "passed"},
+                    raw_payload=regression_output,
                     relevance=0.99,
                     correlation_id=data.incident.correlation_id,
                 )
-            )
-            webhook_hypothesis.confidence = 0.89
-            webhook_hypothesis.evidence_for.append("TEST-012")
-            webhook_hypothesis.status = "CONFIRMED"
+                self._add_evidence(regression_evidence)
+                self._link_tool_evidence(regression_call, [regression_evidence.id])
+                webhook_hypothesis.evidence_for.append(regression_evidence.id)
+            required_root_cause_evidence = {"LOG-291", "LOG-294", "DEPLOY-184", "TEST-012"}
+            if required_root_cause_evidence.issubset(set(webhook_hypothesis.evidence_for)):
+                webhook_hypothesis.confidence = 0.89
+                webhook_hypothesis.status = "CONFIRMED"
+            else:
+                webhook_hypothesis.confidence = min(webhook_hypothesis.confidence, 0.25)
+                webhook_hypothesis.status = "UNCONFIRMED"
             self.repository.save_hypothesis(webhook_hypothesis)
+            owned_evidence = {item.id for item in data.evidence}
             self.repository.add_hypothesis(
                 Hypothesis(
                     incident_id=incident_id,
                     title="Database persistence failure",
                     description="NovaPay may have failed to persist provider confirmations.",
                     confidence=0.18,
-                    evidence_against=["TXN-901", "LOG-291", "TEST-012"],
+                    evidence_against=[
+                        evidence_id
+                        for evidence_id in ["TXN-901", "LOG-291", "TEST-012"]
+                        if evidence_id in owned_evidence
+                    ],
                     verification_strategy="Compare stored state with parser acceptance results.",
                     status="WEAKENED",
                 )
@@ -338,8 +406,8 @@ class IncidentCoordinator:
                     title="Deployment configuration mismatch",
                     description="A runtime flag may have changed webhook compatibility.",
                     confidence=0.21,
-                    evidence_for=["DEPLOY-184"],
-                    evidence_against=["TEST-012"],
+                    evidence_for=["DEPLOY-184"] if "DEPLOY-184" in owned_evidence else [],
+                    evidence_against=["TEST-012"] if "TEST-012" in owned_evidence else [],
                     verification_strategy="Compare dep_183 and dep_184 parser behavior.",
                     status="WEAKENED",
                 )
@@ -348,15 +416,19 @@ class IncidentCoordinator:
                 incident_id,
                 "hypothesis.updated",
                 "Regression hypothesis confirmed",
-                "Controlled test reproduced the exact failure; confidence is high.",
-                {"evidence_ids": ["TEST-012"]},
+                (
+                    "Controlled test and source evidence support the regression."
+                    if webhook_hypothesis.status == "CONFIRMED"
+                    else "The regression remains unconfirmed because required evidence is missing."
+                ),
+                {"evidence_ids": webhook_hypothesis.evidence_for},
             )
 
             await self._transition(
                 incident_id,
                 IncidentState.EVIDENCE_COLLECTED,
                 "Evidence collection complete",
-                "Six evidence records support or challenge the active hypotheses.",
+                f"{len(data.evidence)} evidence records support or challenge the hypotheses.",
             )
             await self._transition(
                 incident_id,
@@ -487,6 +559,17 @@ class IncidentCoordinator:
             approval.status = ApprovalStatus.EXPIRED
             self.repository.save_approval(approval)
             self._audit_approval(approval, actor, "approval.expired", "EXPIRED")
+            await self._transition(
+                incident_id,
+                IncidentState.ESCALATED,
+                "Approval expired",
+                "The critical action was not executed; operator review is required.",
+            )
+            if data.run:
+                data.run.status = "ESCALATED"
+                data.run.completed_at = utc_now()
+                self.repository.save_run(data.run)
+            self._build_report(incident_id)
             raise ApprovalInvalid("Approval has expired")
         approval.status = ApprovalStatus.APPROVED
         approval.approved_by = actor
@@ -585,7 +668,11 @@ class IncidentCoordinator:
             "validation.completed" if passed else "validation.failed",
             "Validation passed" if passed else "Validation failed",
             evidence.summary,
-            {"evidence_ids": [evidence.id], "approval_id": approval.id},
+            {
+                "evidence_ids": [evidence.id],
+                "approval_id": approval.id,
+                "tool_call_id": call.id,
+            },
         )
         self._audit(
             incident_id,
@@ -595,6 +682,7 @@ class IncidentCoordinator:
             resource_type="incident",
             resource_id=incident_id,
             result="PASSED" if passed else "FAILED",
+            tool_call_id=call.id,
             approval_id=approval.id,
             metadata={"evidence_id": evidence.id},
         )
@@ -693,6 +781,10 @@ class IncidentCoordinator:
 
     def _add_evidence(self, evidence: Evidence) -> None:
         self.repository.add_evidence(evidence)
+
+    def _link_tool_evidence(self, call: ToolCall, evidence_ids: list[str]) -> None:
+        call.evidence_ids = list(dict.fromkeys([*call.evidence_ids, *evidence_ids]))
+        self.repository.save_tool_call(call)
 
     async def _transition(
         self, incident_id: str, state: IncidentState, title: str, summary: str

@@ -58,6 +58,28 @@ def test_diagnosis_rejects_unknown_structured_output_fields() -> None:
         Diagnosis.model_validate(payload)
 
 
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("outcome", "MODEL_AUTHORIZED_ROLLBACK"),
+        ("confidence", 1.1),
+        ("summary", None),
+    ],
+)
+def test_diagnosis_rejects_malformed_structured_output(field: str, value: object) -> None:
+    payload = _diagnosis(["EVIDENCE-1"]).model_dump(mode="json")
+    payload[field] = value
+    with pytest.raises(ValidationError):
+        Diagnosis.model_validate(payload)
+
+
+def test_diagnosis_rejects_missing_required_structured_output_field() -> None:
+    payload = _diagnosis(["EVIDENCE-1"]).model_dump(mode="json")
+    del payload["recommended_next_step"]
+    with pytest.raises(ValidationError, match="Field required"):
+        Diagnosis.model_validate(payload)
+
+
 def test_diagnosis_rejects_unknown_and_cross_incident_evidence() -> None:
     repository = InMemoryRepository()
     first = _incident(repository, "INC-EVIDENCE-1")
@@ -90,6 +112,21 @@ def test_hypothesis_rejects_cross_incident_evidence() -> None:
                 verification_strategy="Check incident ownership.",
             )
         )
+
+
+def test_snapshot_mutation_cannot_rewrite_persisted_evidence() -> None:
+    repository = InMemoryRepository()
+    incident = _incident(repository, "INC-EVIDENCE-SNAPSHOT")
+    evidence = _evidence(repository, incident, "EVIDENCE-IMMUTABLE-1")
+
+    evidence.summary = "Caller mutation after persistence"
+    snapshot = repository.snapshot(incident.id)
+    snapshot.evidence[0].summary = "Mutation through API snapshot"
+    snapshot.evidence[0].raw_payload["authorization"] = "approved"
+
+    persisted = repository.data(incident.id).evidence[0]
+    assert persisted.summary == "A bounded fictional record."
+    assert "authorization" not in persisted.raw_payload
 
 
 @pytest.mark.asyncio

@@ -87,7 +87,7 @@ class InMemoryRepository:
             run=data.run,
             validation=data.validation,
             report=data.report,
-        )
+        ).model_copy(deep=True)
 
     def _assert_evidence_owned(self, incident_id: str, evidence_ids: list[str]) -> None:
         if not evidence_ids:
@@ -102,7 +102,7 @@ class InMemoryRepository:
     def add_evidence(self, evidence: Evidence) -> None:
         data = self.data(evidence.incident_id)
         if evidence.id not in {item.id for item in data.evidence}:
-            data.evidence.append(evidence)
+            data.evidence.append(evidence.model_copy(deep=True))
 
     def add_hypothesis(self, hypothesis: Hypothesis) -> None:
         self._assert_evidence_owned(

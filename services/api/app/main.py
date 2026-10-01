@@ -10,7 +10,7 @@ from typing import Any
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.application.evaluation import EvaluationRunner
 from app.application.orchestrator import coordinator
@@ -26,7 +26,12 @@ CORRELATION_ID_PATTERN = re.compile(r"^[A-Za-z0-9_-]{8,64}$")
 
 class DecisionRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    actor: str = "demo-operator"
+    actor: str = Field(
+        default="demo-operator",
+        min_length=1,
+        max_length=120,
+        pattern=r"^[A-Za-z0-9_.@-]+$",
+    )
 
 
 @asynccontextmanager

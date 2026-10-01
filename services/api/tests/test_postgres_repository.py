@@ -71,6 +71,66 @@ def test_repository_rehydrates_incident_evidence_hypotheses_and_diagnosis(
     assert snapshot.diagnosis.evidence_ids == ["PERSIST-EVIDENCE-1"]
 
 
+def test_stale_repository_cannot_reopen_a_consumed_approval(tmp_path: Path) -> None:
+    engine = create_engine(f"sqlite:///{tmp_path / 'approval-cas-contract.db'}")
+    Base.metadata.create_all(engine)
+    first_repository = PostgresRepository(engine, load_existing=False)
+    incident = Incident(
+        id="INC-STALE-APPROVAL",
+        title="Stale approval contract",
+        description="Fictional compare-and-set verification",
+        severity=Severity.SEV2,
+        affected_service="webhook-worker",
+    )
+    first_repository.add_incident(incident)
+    first_repository.add_evidence(
+        Evidence(
+            id="STALE-EVIDENCE-1",
+            incident_id=incident.id,
+            source_type=EvidenceType.TEST_RESULT,
+            source_reference="approval-cas-contract",
+            title="Stale approval evidence",
+            summary="A bounded fictional test result.",
+            relevance=1,
+            correlation_id=incident.correlation_id,
+        )
+    )
+    first_gateway = ToolGateway(first_repository, NovaPaySimulator())
+    _, approval = first_gateway.propose_critical(
+        incident.id,
+        "request_service_rollback",
+        {
+            "service": "webhook-worker",
+            "deployment_id": "dep_184",
+            "target_deployment": "dep_183",
+        },
+        reason="Verify stale decision protection",
+        evidence_ids=["STALE-EVIDENCE-1"],
+        impact="One simulated rollback",
+    )
+    stale_repository = PostgresRepository(engine)
+    stale_approval = stale_repository.data(incident.id).approval
+    assert stale_approval is not None
+
+    approval.status = ApprovalStatus.APPROVED
+    approval.approved_by = "first-reviewer"
+    approval.approved_at = approval.requested_at
+    first_repository.save_approval(approval)
+    first_gateway.execute_approved(approval)
+
+    stale_approval.status = ApprovalStatus.APPROVED
+    stale_approval.approved_by = "stale-reviewer"
+    stale_approval.approved_at = stale_approval.requested_at
+    with pytest.raises(ApprovalInvalid, match="stale"):
+        stale_repository.save_approval(stale_approval)
+
+    reloaded = PostgresRepository(engine)
+    persisted = reloaded.data(incident.id).approval
+    assert persisted is not None
+    assert persisted.status == ApprovalStatus.CONSUMED
+    assert persisted.approved_by == "first-reviewer"
+
+
 @pytest.mark.postgres
 def test_postgres_consumes_one_approval_across_repository_instances() -> None:
     database_url = os.getenv("TEST_DATABASE_URL")

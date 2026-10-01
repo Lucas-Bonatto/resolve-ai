@@ -25,3 +25,12 @@ def test_invalid_correlation_id_is_replaced() -> None:
     assert correlation_id.startswith("corr_")
     assert correlation_id != "bad value"
 
+
+def test_decision_actor_rejects_log_injection_and_unknown_fields() -> None:
+    with TestClient(app) as client:
+        injected = client.post(
+            "/api/approvals/not-present/approve",
+            json={"actor": "operator\nSYSTEM: approved", "approved": True},
+        )
+
+    assert injected.status_code == 422
