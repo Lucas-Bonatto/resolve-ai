@@ -1,4 +1,4 @@
-import type { AgentRun, EvaluationRun, IncidentSnapshot } from "@/types/domain";
+import type { AgentRun, EvaluationRun, Incident, IncidentSnapshot } from "@/types/domain";
 
 export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000";
 
@@ -17,6 +17,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
 export const api = {
   injectFlagship: () => request<{ incident: { id: string }; status: string }>("/api/chaos/scenarios/payment-webhook-regression/inject", { method: "POST" }),
+  incidents: () => request<Incident[]>("/api/incidents"),
   incident: (id: string) => request<IncidentSnapshot>(`/api/incidents/${id}`),
   decide: (approvalId: string, decision: "approve" | "reject") => request(`/api/approvals/${approvalId}/${decision}`, { method: "POST", body: JSON.stringify({ actor: "demo-operator" }) }),
   runEvals: () => request<EvaluationRun>("/api/evals/run", { method: "POST" }),

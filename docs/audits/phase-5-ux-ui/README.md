@@ -130,3 +130,24 @@ Risks found in implementation and DOM inspection:
 - Visible known evaluation regressions.
 - Validation before `RESOLVED`.
 - The restrained operational visual language and absence of chat-style interaction.
+
+## Remediation pass 1 — 2026-10-02
+
+The first implementation pass closed the two leading findings:
+
+- The Command Center now reads incidents and the latest evaluation from the local API. Live metrics, the incident queue, evaluation pass count, visible failures, and active boundary-probe count follow backend state.
+- Static activity and service-health examples remain available only as explicitly labeled `SAMPLE FIXTURE HISTORY` and `SAMPLE FIXTURE` sections.
+- The misleading “Inject incident” link is now “Open flagship”; injection still happens only through the War Room action.
+- The mobile shell now uses a bounded disclosure menu instead of a non-wrapping horizontal navigation row.
+- Active navigation exposes `aria-current="page"`, a skip link targets the single main landmark, and the nested War Room `<main>` was removed.
+- The landing header now layers above the decorative hero graphic, preventing the brand and demo action from being visually clipped.
+- Playwright verifies the live resolved dashboard state, evaluation `39/40` result, `30` boundary probes, keyboard-operable approval, mobile menu visibility, and absence of horizontal overflow at 390 px.
+
+Evidence after remediation:
+
+1. **Command Center — desktop.** Live incident and evaluation data are separated from labeled fixtures. [Screenshot 12](./screenshots/12-dashboard-corrected-desktop.png)
+2. **Command Center — mobile.** The page fits the viewport without horizontal scrolling. [Screenshot 13](./screenshots/13-dashboard-corrected-mobile.png)
+3. **Mobile navigation expanded.** All destinations are visible and the current route has active semantics. [Screenshot 14](./screenshots/14-navigation-mobile-open.png)
+4. **Landing — mobile.** Brand and “Explore demo” action are no longer obscured by the hero decoration. [Screenshot 15](./screenshots/15-landing-corrected-mobile.png)
+
+The remaining P1 work is approval/outcome prominence, milestone-first timeline grouping, and precise bounded-agentic product copy.

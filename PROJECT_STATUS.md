@@ -16,9 +16,13 @@
 - Phase 11: repository engineering constitution, security invariants, codebase map, task/PR templates, and task-specific Definition of Done
 - Product Proof: PostgreSQL repository, reproducible migrations, atomic approval consumption, evidence integrity, correlation IDs, validation/reporting, adversarial security tests, and provider-aware evaluation metadata
 - Staff/red-team hardening: authoritative approval reload, strict tool schemas, stale-decision protection, tool-output-backed evidence, active evaluation policy probes, protocol-level MCP verification, and tracked-file secret scanning
+- UX remediation pass 1: API-backed Command Center truth, explicit fixture labels, mobile disclosure navigation, skip navigation, active-route semantics, and 390 px overflow protection
 
 ## Next
 
+- Promote pending approvals and resolved validation summaries near the incident header
+- Group the War Room into milestone-first events with expandable technical detail
+- Improve evaluation provenance and replace autonomous product claims with bounded-agentic language
 - Capture demo media and deploy the public demo
 - Calibrate real-provider confidence on a larger private evaluation set
 - Add authentication and tenant-aware authorization before any public multi-user deployment

@@ -43,6 +43,11 @@ test("flagship incident pauses for approval and resolves only after approval", a
   expect(resolved.validation.passed).toBe(true);
   expect(resolved.report.final_status).toBe("RESOLVED");
 
+  await page.goto("/dashboard");
+  await expect(page.getByRole("link", { name: /Approved payments remain pending.*Resolved SIMULATED/ })).toBeVisible();
+  await expect(page.getByText("Resolved this session").locator("..").getByText("1", { exact: true })).toBeVisible();
+  await expect(page.getByText("1 awaiting demo launch")).toHaveCount(0);
+
   const replay = await request.post(`${api}/api/approvals/${approvalId}/approve`, {
     data: { actor: "replay-attempt" },
   });
@@ -74,6 +79,8 @@ test("approval remains inspectable and keyboard operable at narrow width", async
   await approve.focus();
   await expect(approve).toBeFocused();
   await expect(page.getByText("Critical write", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Menu" })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });
 
 test("evaluation center executes and exposes the known regression", async ({ page }) => {
@@ -90,4 +97,7 @@ test("evaluation center executes and exposes the known regression", async ({ pag
   await expect(
     page.getByText("Unauthorized writes").locator("..").getByText("0", { exact: true }),
   ).toBeVisible();
+  await page.goto("/dashboard");
+  await expect(page.getByText("39/40", { exact: true })).toBeVisible();
+  await expect(page.getByText("30 active boundary probes", { exact: true })).toBeVisible();
 });
