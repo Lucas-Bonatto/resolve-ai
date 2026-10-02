@@ -151,3 +151,22 @@ Evidence after remediation:
 4. **Landing — mobile.** Brand and “Explore demo” action are no longer obscured by the hero decoration. [Screenshot 15](./screenshots/15-landing-corrected-mobile.png)
 
 The remaining P1 work is approval/outcome prominence, milestone-first timeline grouping, and precise bounded-agentic product copy.
+
+## Remediation pass 2 — 2026-10-02
+
+The second implementation pass corrected the two trust-critical hierarchy problems in the flagship War Room:
+
+- A pending critical decision now appears directly below the incident header, before evidence, hypotheses, and the investigation timeline.
+- The decision presents the exact requested action, reason, potential impact, and bound evidence once, with explicit `Reject rollback` and `Approve exact rollback` controls.
+- A completed validation now promotes recovery proof and the incident report to the same top-level position. Failed validation receives a distinct critical treatment and is never presented as resolution success.
+- The former lower-page approval, validation, and report duplicates were removed. Historical approval state remains visible in the policy column after a decision.
+- Playwright now asserts that the pending decision and completed outcome precede the timeline, that the decision heading is visible in the initial 390 px viewport, and that the exact-action controls remain keyboard operable.
+
+Visual evidence after remediation:
+
+1. **Decision hierarchy — desktop.** The pending critical action is visible immediately below current incident state. [Screenshot 16](./screenshots/16-war-room-decision-promoted-desktop.jpg)
+2. **Decision hierarchy — mobile.** The decision starts in the initial 390 × 844 viewport without horizontal overflow. [Screenshot 17](./screenshots/17-war-room-decision-promoted-mobile.jpg)
+3. **Outcome hierarchy — desktop.** Validation proof and the incident report precede the investigation timeline. [Screenshot 18](./screenshots/18-war-room-outcome-promoted-desktop.jpg)
+4. **Outcome hierarchy — mobile.** Recovery status remains concise and readable before the long-form investigation record. [Screenshot 19](./screenshots/19-war-room-outcome-promoted-mobile.jpg)
+
+The remaining P1 work is milestone-first timeline grouping and precise bounded-agentic product copy. Evaluation provenance and comparison context remain P2 work.

@@ -5,7 +5,13 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { CheckIcon, IncidentIcon, SparkIcon } from "@/components/icons";
 import { StatusBadge } from "@/components/ui";
 import { API_URL, api } from "@/lib/api";
-import type { Evidence, IncidentSnapshot } from "@/types/domain";
+import type {
+  Approval,
+  Evidence,
+  IncidentReport,
+  IncidentSnapshot,
+  ValidationResult,
+} from "@/types/domain";
 
 const terminalStates = new Set(["RESOLVED", "FAILED", "ESCALATED"]);
 
@@ -25,6 +31,109 @@ function confidenceLabel(value: number): "Low" | "Medium" | "High" {
   if (value >= 0.75) return "High";
   if (value >= 0.45) return "Medium";
   return "Low";
+}
+
+function PendingDecision({
+  approval,
+  busy,
+  onDecide,
+}: {
+  approval: Approval;
+  busy: boolean;
+  onDecide: (decision: "approve" | "reject") => void;
+}) {
+  return (
+    <section className="war-card priority-card approval-live" aria-labelledby="pending-decision-title">
+      <header className="war-card-head">
+        <h3 id="pending-decision-title">Decision required</h3>
+        <StatusBadge tone="critical">Critical write</StatusBadge>
+      </header>
+      <div className="war-card-body priority-card-grid">
+        <div className="priority-card-primary">
+          <span className="priority-eyebrow">Human decision checkpoint</span>
+          <h4>{approval.requested_action}</h4>
+          <p>{approval.reason}</p>
+          <div className="approval-buttons">
+            <button
+              className="button button-danger"
+              disabled={busy}
+              onClick={() => onDecide("reject")}
+            >
+              Reject rollback
+            </button>
+            <button
+              className="button button-success"
+              disabled={busy}
+              onClick={() => onDecide("approve")}
+            >
+              <CheckIcon /> Approve exact rollback
+            </button>
+          </div>
+        </div>
+        <div className="priority-card-context">
+          <div>
+            <span className="detail-label">Potential impact</span>
+            <p>{approval.potential_impact}</p>
+          </div>
+          <div>
+            <span className="detail-label">Evidence</span>
+            <div className="evidence-pills">
+              {approval.evidence_ids.map(id => <span key={id}>{id}</span>)}
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function ResolutionOutcome({
+  validation,
+  report,
+}: {
+  validation: ValidationResult;
+  report: IncidentReport | null;
+}) {
+  return (
+    <section
+      className={`war-card priority-card outcome-card ${validation.passed ? "outcome-passed" : "outcome-failed"}`}
+      aria-labelledby="resolution-outcome-title"
+    >
+      <header className="war-card-head">
+        <h3 id="resolution-outcome-title">Resolution outcome</h3>
+        <StatusBadge tone={validation.passed ? "success" : "critical"}>
+          {validation.passed ? "Validated" : "Validation failed"}
+        </StatusBadge>
+      </header>
+      <div className="war-card-body outcome-grid">
+        <div className="outcome-summary">
+          <span className="priority-eyebrow">Post-remediation validation</span>
+          <h4>{validation.summary}</h4>
+          <div className="outcome-metrics" aria-label="Validation metrics">
+            <div><span>Checks</span><b>{validation.checks_passed} passed · {validation.checks_failed} failed</b></div>
+            <div><span>Transactions recovered</span><b>{validation.recovered_transactions}</b></div>
+          </div>
+          <div className="evidence-pills" aria-label="Validation evidence">
+            {validation.evidence_ids.map(id => <span key={id}>{id}</span>)}
+          </div>
+        </div>
+        {report && (
+          <div className="outcome-report">
+            <div className="outcome-report-heading">
+              <h4>Incident report</h4>
+              <StatusBadge tone={tone(report.final_status)}>{report.final_status}</StatusBadge>
+            </div>
+            <p>{report.summary}</p>
+            <div className="outcome-report-meta">
+              <span>{report.evidence_ids.length} evidence references</span>
+              <span>{report.hypothesis_ids.length} hypotheses considered</span>
+              <span>Correlation {report.correlation_id}</span>
+            </div>
+          </div>
+        )}
+      </div>
+    </section>
+  );
 }
 
 export function WarRoom({ incidentId }: { incidentId: string }) {
@@ -89,6 +198,12 @@ export function WarRoom({ incidentId }: { incidentId: string }) {
   return <>
     <section className="war-header"><div><p className="breadcrumb">{snapshot.incident.id} / Incident war room</p><h2>{snapshot.incident.title}</h2><p>{snapshot.incident.description}</p></div><div className="war-meta"><StatusBadge tone="critical">{snapshot.incident.severity}</StatusBadge><StatusBadge tone={tone(snapshot.incident.state)}>{snapshot.incident.state.replaceAll("_", " ")}</StatusBadge><StatusBadge tone="neutral">{snapshot.incident.execution_status}</StatusBadge></div></section>
     {error && <div className="error-banner" role="alert">{error}</div>}
+    {snapshot.approval?.status === "PENDING" && (
+      <PendingDecision approval={snapshot.approval} busy={busy} onDecide={decide} />
+    )}
+    {snapshot.validation && (
+      <ResolutionOutcome validation={snapshot.validation} report={snapshot.report} />
+    )}
     <div className="war-grid">
       <aside className="war-column">
         <section className="war-card"><header className="war-card-head"><h3>Incident summary</h3><StatusBadge tone="neutral">Live</StatusBadge></header><div className="war-card-body summary-list"><div><span>Affected service</span><b>{snapshot.incident.affected_service}</b></div><div><span>Customers</span><b>{snapshot.incident.affected_customers}</b></div><div><span>Evidence</span><b>{snapshot.evidence.length} records</b></div><div><span>Tool calls</span><b>{snapshot.tool_calls.length}</b></div><div><span>Provider</span><b>{snapshot.run?.provider ?? "Starting"}</b></div><div><span>Correlation ID</span><b>{snapshot.incident.correlation_id}</b></div><div><span>Trace ID</span>{snapshot.run ? <Link href={`/runs/${snapshot.run.id}`}><b>{snapshot.run.trace_id}</b></Link> : <b>—</b>}</div></div></section>
@@ -100,13 +215,11 @@ export function WarRoom({ incidentId }: { incidentId: string }) {
         <section className="war-card"><header className="war-card-head"><h3>Investigation timeline</h3><span className="status-badge status-info"><i className="live-dot" /> Event stream</span></header><div className="timeline">{orderedEvents.map(event => <article className={`timeline-event ${event.type.startsWith("tool") ? "tool" : event.type.startsWith("approval") ? "approval" : ""}`} key={event.id}><span className="timeline-time">{time(event.created_at)}</span><h4>{event.title}</h4><p>{event.summary}</p><div className="event-meta"><span>{event.type}</span><span>{event.status}</span>{typeof event.metadata.duration_ms === "number" && <span>{event.metadata.duration_ms} ms</span>}</div></article>)}</div></section>
         {snapshot.diagnosis && <section className="diagnosis-card"><small>Decision summary · {confidenceLabel(snapshot.diagnosis.confidence)} heuristic confidence · {snapshot.diagnosis.outcome.replaceAll("_", " ")}</small><h3>{snapshot.diagnosis.probable_root_cause}</h3><p>{snapshot.diagnosis.summary} {snapshot.diagnosis.recommended_next_step}</p><div className="evidence-pills">{snapshot.diagnosis.evidence_ids.map(id => <span key={id}>{id}</span>)}</div></section>}
         {snapshot.remediation_plan && <section className="war-card"><header className="war-card-head"><h3>Remediation plan</h3><StatusBadge tone="critical">Critical</StatusBadge></header><div className="war-card-body"><p style={{ fontSize: 11, color: "var(--muted)", lineHeight: 1.55 }}>{snapshot.remediation_plan.summary}</p>{snapshot.remediation_plan.steps.map((step, index) => <div className="service-row" key={step.id}><span><b>{index + 1}. {step.title}</b><br /><small>{step.description}</small></span><StatusBadge tone={step.status === "SIMULATED" ? "success" : step.risk_level === "critical_write" ? "critical" : "neutral"}>{step.status}</StatusBadge></div>)}</div></section>}
-        {snapshot.validation && <section className="war-card"><header className="war-card-head"><h3>Post-remediation validation</h3><StatusBadge tone={snapshot.validation.passed ? "success" : "critical"}>{snapshot.validation.passed ? "Verified" : "Failed"}</StatusBadge></header><div className="war-card-body summary-list"><div><span>Summary</span><b>{snapshot.validation.summary}</b></div><div><span>Checks</span><b>{snapshot.validation.checks_passed} passed · {snapshot.validation.checks_failed} failed</b></div><div><span>Transactions recovered</span><b>{snapshot.validation.recovered_transactions}</b></div></div></section>}
-        {snapshot.report && <section className="war-card"><header className="war-card-head"><h3>Incident report</h3><StatusBadge tone={tone(snapshot.report.final_status)}>{snapshot.report.final_status}</StatusBadge></header><div className="war-card-body"><p style={{ fontSize: 11, color: "var(--muted)", lineHeight: 1.55 }}>{snapshot.report.summary}</p><div className="summary-list"><div><span>Evidence references</span><b>{snapshot.report.evidence_ids.length}</b></div><div><span>Hypotheses considered</span><b>{snapshot.report.hypothesis_ids.length}</b></div><div><span>Correlation ID</span><b>{snapshot.report.correlation_id}</b></div></div></div></section>}
       </section>
 
       <aside className="war-column">
         <section className="war-card"><header className="war-card-head"><h3>Hypothesis engine</h3><span className="status-badge status-neutral">{snapshot.hypotheses.length}</span></header><div className="war-card-body">{snapshot.hypotheses.length ? snapshot.hypotheses.map(item => <article className="hypothesis" key={item.id}><div className="hypothesis-head"><h4>{item.title}</h4><small>{confidenceLabel(item.confidence)} · {item.status}</small></div><div className="confidence-bar"><span style={{ width: `${item.confidence * 100}%` }} /></div><p>{item.description}</p><small>Verify: {item.verification_strategy}</small>{(item.evidence_for.length > 0 || item.evidence_against.length > 0) && <div className="evidence-pills" aria-label={`Evidence for ${item.title}`}>{item.evidence_for.map(id => <span key={`for-${id}`}>Supports {id}</span>)}{item.evidence_against.map(id => <span key={`against-${id}`}>Contradicts {id}</span>)}</div>}</article>) : <div className="empty-state"><strong>Hypotheses are forming.</strong><p>ResolveAI does not jump directly to a root cause.</p></div>}</div></section>
-        {snapshot.approval?.status === "PENDING" ? <section className="war-card approval-live"><header className="war-card-head"><h3>Decision required</h3><StatusBadge tone="critical">Critical write</StatusBadge></header><div className="war-card-body approval-detail"><div><label>Requested action</label><p><b>{snapshot.approval.requested_action}</b></p></div><div><label>Why</label><p>{snapshot.approval.reason}</p></div><div><label>Potential impact</label><p>{snapshot.approval.potential_impact}</p></div><div><label>Evidence</label><div className="evidence-pills">{snapshot.approval.evidence_ids.map(id => <span key={id}>{id}</span>)}</div></div><div className="approval-buttons"><button className="button button-danger" disabled={busy} onClick={() => decide("reject")}>Reject</button><button className="button button-success" disabled={busy} onClick={() => decide("approve")}><CheckIcon />Approve</button></div></div></section> : <section className="war-card"><header className="war-card-head"><h3>Human approvals</h3></header><div className="empty-state"><strong>{snapshot.approval ? `Decision: ${snapshot.approval.status}` : "No decision waiting on you."}</strong><p>{snapshot.approval ? `Recorded for ${snapshot.approval.requested_action}.` : "ResolveAI has no critical action pending approval."}</p></div></section>}
+        {snapshot.approval?.status !== "PENDING" && <section className="war-card"><header className="war-card-head"><h3>Human approvals</h3></header><div className="empty-state"><strong>{snapshot.approval ? `Decision: ${snapshot.approval.status}` : "No decision waiting on you."}</strong><p>{snapshot.approval ? `Recorded for ${snapshot.approval.requested_action}.` : "ResolveAI has no critical action pending approval."}</p></div></section>}
         <section className="war-card"><header className="war-card-head"><h3>Permission boundary</h3><StatusBadge tone="success">Enforced</StatusBadge></header><div className="war-card-body summary-list"><div><span>Read tools</span><b>Automatic</b></div><div><span>Safe writes</span><b>Audited</b></div><div><span>Critical writes</span><b>Approval</b></div><div><span>Policy owner</span><b>Backend</b></div></div></section>
       </aside>
     </div>

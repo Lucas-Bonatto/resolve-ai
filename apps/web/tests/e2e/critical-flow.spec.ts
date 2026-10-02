@@ -1,4 +1,4 @@
-import { expect, test, type APIRequestContext } from "@playwright/test";
+import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
 
 const api = "http://127.0.0.1:8000";
 
@@ -10,6 +10,20 @@ async function waitForState(request: APIRequestContext, state: string) {
   }, { timeout: 15_000 }).toBe(state);
 }
 
+async function expectHeadingBefore(page: Page, first: string, second: string) {
+  const firstHeading = page.getByRole("heading", { name: first });
+  const secondHeading = page.getByRole("heading", { name: second });
+  await expect(firstHeading).toBeVisible();
+  await expect(secondHeading).toBeAttached();
+  const [firstBox, secondBox] = await Promise.all([
+    firstHeading.boundingBox(),
+    secondHeading.boundingBox(),
+  ]);
+  expect(firstBox).not.toBeNull();
+  expect(secondBox).not.toBeNull();
+  expect(firstBox!.y).toBeLessThan(secondBox!.y);
+}
+
 test("flagship incident pauses for approval and resolves only after approval", async ({ page, request }) => {
   await request.post(`${api}/api/demo/reset`);
   await request.post(`${api}/api/chaos/scenarios/payment-webhook-regression/inject`);
@@ -19,7 +33,8 @@ test("flagship incident pauses for approval and resolves only after approval", a
     name: "Webhook payload schema regression introduced by deployment dep_184",
     exact: true,
   })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Approve" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Approve exact rollback" })).toBeVisible();
+  await expectHeadingBefore(page, "Decision required", "Investigation timeline");
 
   const beforeApproval = await request.get(`${api}/api/incidents/INC-2026-0042`);
   const waiting = await beforeApproval.json();
@@ -30,12 +45,13 @@ test("flagship incident pauses for approval and resolves only after approval", a
   expect(waiting.validation).toBeNull();
 
   const approvalId = waiting.approval.id;
-  await page.getByRole("button", { name: "Approve" }).click();
+  await page.getByRole("button", { name: "Approve exact rollback" }).click();
   await expect(page.getByText("RESOLVED", { exact: true }).first()).toBeVisible({
     timeout: 10_000,
   });
   await expect(page.getByText("Post-remediation validation passed")).toBeVisible();
   await expect(page.getByRole("heading", { name: "Incident report" })).toBeVisible();
+  await expectHeadingBefore(page, "Resolution outcome", "Investigation timeline");
 
   const resolvedResponse = await request.get(`${api}/api/incidents/INC-2026-0042`);
   const resolved = await resolvedResponse.json();
@@ -59,7 +75,7 @@ test("rejected critical action escalates without execution", async ({ page, requ
   await request.post(`${api}/api/chaos/scenarios/payment-webhook-regression/inject`);
   await waitForState(request, "AWAITING_APPROVAL");
   await page.goto("/incidents/INC-2026-0042");
-  await page.getByRole("button", { name: "Reject" }).click();
+  await page.getByRole("button", { name: "Reject rollback" }).click();
   await expect(page.getByText("ESCALATED", { exact: true })).toBeVisible({ timeout: 10_000 });
   await expect(page.getByText("Decision: REJECTED")).toBeVisible();
 });
@@ -74,7 +90,10 @@ test("approval remains inspectable and keyboard operable at narrow width", async
   await waitForState(request, "AWAITING_APPROVAL");
   await page.goto("/incidents/INC-2026-0042");
 
-  const approve = page.getByRole("button", { name: "Approve" });
+  await expect(page.getByRole("heading", { name: "Decision required" })).toBeInViewport();
+  await expectHeadingBefore(page, "Decision required", "Investigation timeline");
+
+  const approve = page.getByRole("button", { name: "Approve exact rollback" });
   await approve.scrollIntoViewIfNeeded();
   await approve.focus();
   await expect(approve).toBeFocused();
