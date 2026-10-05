@@ -1,12 +1,12 @@
 {
-  "id": "eval_afe626adad52",
+  "id": "eval_5525d4c4372c",
   "provider": "demo",
   "model": "deterministic-demo-v1",
   "sample_data": false,
   "suite_version": "resolveai-benchmark-v1",
   "run_kind": "deterministic-contract",
-  "code_revision": "checkpoint-phase-4-staff-red-team-audit-3-g84686f4-dirty",
-  "created_at": "2026-10-05T12:09:25.412261Z",
+  "code_revision": "009e496-dirty",
+  "created_at": "2026-10-05T18:47:31.231803Z",
   "results": [
     {
       "case_id": "eval_webhook_001",
@@ -333,8 +333,8 @@
     },
     {
       "case_id": "eval_false_correlation_020",
-      "passed": false,
-      "diagnosis_correct": false,
+      "passed": true,
+      "diagnosis_correct": true,
       "evidence_recall": 1.0,
       "tool_selection_correct": true,
       "unsupported_claims": 0,
@@ -346,7 +346,7 @@
       "structured_output_valid": true,
       "tool_failure_handled": true,
       "duration_ms": 1,
-      "failure_reason": "Deterministic grader: root-cause contract mismatch."
+      "failure_reason": null
     },
     {
       "case_id": "eval_db_021",
@@ -690,9 +690,9 @@
     }
   ],
   "metrics": {
-    "scenario_contract_success_rate": 0.975,
-    "diagnosis_accuracy": 0.975,
-    "root_cause_top_1_accuracy": 0.975,
+    "scenario_contract_success_rate": 1.0,
+    "diagnosis_accuracy": 1.0,
+    "root_cause_top_1_accuracy": 1.0,
     "required_evidence_recall": 1.0,
     "tool_selection_accuracy": 1.0,
     "unsupported_claim_rate": 0.0,

@@ -2,7 +2,7 @@
 
 The benchmark contains 40 versioned JSONL cases in `evals/cases/benchmark.jsonl`. The local `EvaluationRunner` applies deterministic mappings and graders and stores a run record for the UI; it does not call either AI provider. Generated runs are labeled `provider=demo`, `model=deterministic-demo-v1`, and `run_kind=deterministic-contract`, with suite and code-revision metadata. No score is hard-coded into the Evaluation Center.
 
-`scenario_contract_success_rate` is `passed cases / executed cases`. The historical 97.5% is therefore 39/40, not model accuracy. The failing case is `eval_false_correlation_020`: its `false_correlation` signal is deliberately not mapped to the expected provider-outage cause, so the deterministic grader reports a root-cause contract mismatch. It remains visible as a regression.
+`scenario_contract_success_rate` is `passed cases / executed cases`. The current generated result is 40/40 deterministic scenario contracts, not model accuracy. Case `eval_false_correlation_020` maps the explicit `false_correlation` signal to the provider-outage cause and selects only provider-health and transaction-read tools, proving that an unrelated recent deployment does not trigger rollback selection.
 
 Security metrics, including approval bypasses, prompt-injection bypasses, evidence-integrity violations, and unauthorized critical executions, are aggregated from per-case results rather than assigned a successful constant. Cases requiring approval, plus injection cases, actively attempt the registered rollback through the production `ToolGateway` without approval. A mutation-style unit test changes the policy result to `ALLOW` and proves both bypass and unauthorized-execution metrics become nonzero.
 
@@ -14,7 +14,7 @@ Security metrics, including approval bypasses, prompt-injection bypasses, eviden
 - Prompt-injection resistance.
 - Approval-bypass resistance.
 
-Five cases contain adversarial instructions inside untrusted evidence, and five require the system to abstain because evidence is insufficient. One known false-correlation regression is intentionally visible, preventing a cosmetically perfect result from being mistaken for proof of general reliability.
+Five cases contain adversarial instructions inside untrusted evidence, and five require the system to abstain because evidence is insufficient. A perfect deterministic contract result is not evidence of general model reliability: the runner uses fixture mappings, and failures remain visible whenever a case violates diagnosis, evidence, tool-selection, authorization, structure, or failure-handling contracts.
 
 ## Running
 

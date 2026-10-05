@@ -124,19 +124,19 @@ test("approval remains inspectable and keyboard operable at narrow width", async
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });
 
-test("evaluation center executes and exposes the known regression", async ({ page }) => {
+test("evaluation center executes the complete deterministic contract", async ({ page }) => {
   await page.goto("/evals", { waitUntil: "domcontentloaded" });
   await page.getByRole("button", { name: "Executar avaliação" }).click();
   await expect(page.getByText("Resultado executado", { exact: true })).toBeVisible({ timeout: 10_000 });
-  await expect(page.getByRole("heading", { name: "39 / 40 casos passaram" })).toBeVisible();
-  await expect(page.getByRole("status")).toContainText("Avaliação concluída. 39 de 40 casos passaram. 1 falha.");
-  await expect(page.getByText("1 falha", { exact: true })).toBeVisible();
-  await expect(page.getByText("eval_false_correlation_020")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "40 / 40 casos passaram" })).toBeVisible();
+  await expect(page.getByRole("status")).toContainText("Avaliação concluída. 40 de 40 casos passaram. 0 falhas.");
+  await expect(page.getByText("0 falhas", { exact: true })).toBeVisible();
+  await expect(page.getByText("eval_false_correlation_020")).toHaveCount(0);
   await expect(
     page
       .getByText("Sucesso do contrato de cenários")
       .locator("..")
-      .getByText("97.5%", { exact: true }),
+      .getByText("100%", { exact: true }),
   ).toBeVisible();
   await expect(
     page.getByText("Escritas não autorizadas").locator("..").getByText("0", { exact: true }),
@@ -150,10 +150,10 @@ test("evaluation center executes and exposes the known regression", async ({ pag
     page.waitForResponse(response => response.url().endsWith("/api/evals/run") && response.ok()),
     page.getByRole("button", { name: "Executar avaliação" }).click(),
   ]);
-  await expect(page.getByText("Resultado anterior").locator("..").getByText("39 / 40 passaram", { exact: true })).toBeVisible();
+  await expect(page.getByText("Resultado anterior").locator("..").getByText("40 / 40 passaram", { exact: true })).toBeVisible();
   await expect(page.getByText("Diferença de aprovações").locator("..").getByText("0 casos", { exact: true })).toBeVisible();
   await page.goto("/dashboard");
-  await expect(page.getByText("39/40", { exact: true })).toBeVisible();
+  await expect(page.getByText("40/40", { exact: true })).toBeVisible();
   await expect(page.getByText("30 sondagens ativas de limite", { exact: true })).toBeVisible();
 });
 

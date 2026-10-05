@@ -10,7 +10,7 @@
 - Phase 5: provider abstraction with Demo and OpenAI Agents SDK providers
 - Phase 6: deterministic permission engine and argument-bound approvals
 - Phase 7: responsive command center, incident war room, run, audit, security, and evaluation surfaces
-- Phase 8: 40-case executable benchmark with visible known regression
+- Phase 8: 40-case executable benchmark with visible per-case failures and computed metrics
 - Phase 9: unit, typing, lint, build, component, and critical browser verification
 - Phase 10: Docker, CI, open-source policy, launch, and operator documentation
 - Phase 11: repository engineering constitution, security invariants, codebase map, task/PR templates, and task-specific Definition of Done
@@ -21,6 +21,7 @@
 - UX remediation pass 3: milestone-first investigation timeline with expandable technical activity, bounded-agentic product language, and executed evaluation provenance with in-process comparison
 - UX remediation pass 4: accessible skip navigation, focus and disclosure behavior, async status announcements, named table regions, targeted contrast corrections, 320 px reflow, and forced-colors coverage
 - Brazilian Portuguese product localization: public landing page, command center, incident surfaces, War Room, evaluations, security, audit, errors, accessible labels, and browser tests; canonical technical identifiers and execution labels remain visible for auditability
+- Evaluation false-correlation remediation: provider-outage evidence now outranks an unrelated recent deployment in `eval_false_correlation_020`, with deterministic tool-selection coverage and a regenerated 40/40 contract result
 
 ## Next
 

@@ -8,7 +8,7 @@ Review date: 2026-09-30.
 - Critical rollback execution is impossible through the normal gateway without an exact, current approval.
 - Approval and rejection journeys are covered by browser tests against the real local API.
 - Diagnosis evidence references, state transitions, permissions, and evaluation behavior have focused unit tests.
-- The deterministic benchmark runs 40 cases and keeps a known regression visible.
+- The deterministic benchmark runs 40 cases, including false-correlation and adversarial security contracts, and keeps any failing case visible.
 - Frontend loading, empty, API-offline, and error behavior avoids fabricated fallbacks.
 - Demo and real AI providers share a typed diagnosis contract.
 - The project documents its fictional data, ephemeral default store, absent demo authentication, and disabled live integrations.
