@@ -169,4 +169,26 @@ Visual evidence after remediation:
 3. **Outcome hierarchy — desktop.** Validation proof and the incident report precede the investigation timeline. [Screenshot 18](./screenshots/18-war-room-outcome-promoted-desktop.jpg)
 4. **Outcome hierarchy — mobile.** Recovery status remains concise and readable before the long-form investigation record. [Screenshot 19](./screenshots/19-war-room-outcome-promoted-mobile.jpg)
 
-The remaining P1 work is milestone-first timeline grouping and precise bounded-agentic product copy. Evaluation provenance and comparison context remain P2 work.
+At that checkpoint, the remaining P1 work was milestone-first timeline grouping and precise bounded-agentic product copy; evaluation provenance and comparison context remained P2 work.
+
+## Remediation pass 3 — 2026-10-05
+
+The third implementation pass closes the remaining timeline, product-language, and evaluation-communication findings:
+
+- The War Room defaults to milestone events and reports the number of milestones and technical activities without deleting any event.
+- `Milestones`, `Tools`, `Policy`, and `All events` filters are keyboard-operable toggle buttons. Tool start/completion pairs are grouped into expandable technical activities that retain event type, execution label, event ID, duration, and summary.
+- The landing page and document metadata now describe ResolveAI as bounded agentic. Product copy no longer implies an autonomous operator.
+- The Evaluation Center leads with the executed `passed / total` contract, treats a non-perfect run as warning rather than success, uses singular failure copy, and exposes UTC execution time, suite, run kind, result ID, provider/model, code revision, average case duration, and active boundary probes.
+- Previous-run comparison appears only when a prior executed result exists in the current process. Demo reset clears that history and the empty state says so explicitly.
+- The documented `RESOLVEAI_CODE_REVISION` setting now reaches the runner. CI supplies `github.sha`; Compose forwards an explicitly configured revision; missing provenance is shown as `Not configured`.
+
+Visual evidence after remediation:
+
+1. **Milestone-first timeline — desktop.** The primary record emphasizes workflow milestones. [Screenshot 20](./screenshots/20-war-room-milestones-desktop.jpg)
+2. **Expandable technical activity — desktop.** Tool-level events remain inspectable without dominating the workflow. [Screenshot 21](./screenshots/21-war-room-technical-activity-desktop.jpg)
+3. **Timeline filters — mobile.** All four views remain usable at 390 × 844 without page overflow. [Screenshot 22](./screenshots/22-war-room-timeline-mobile.jpg)
+4. **Evaluation provenance — desktop.** The executed result leads with `39 / 40`, visible warning state, provenance, and honest previous-run context. [Screenshot 23](./screenshots/23-evaluation-provenance-desktop.jpg)
+5. **Evaluation provenance — mobile.** Run identity and security context remain readable in a single column. [Screenshot 24](./screenshots/24-evaluation-provenance-mobile.jpg)
+6. **Bounded-agentic language — desktop.** The landing claim now matches the manager-style architecture. [Screenshot 25](./screenshots/25-landing-bounded-agentic-desktop.jpg)
+
+The remaining audit work is a dedicated screen-reader, zoom, forced-colors, and measured-contrast pass. Public demo media and deployment remain product-launch tasks rather than audit remediation.

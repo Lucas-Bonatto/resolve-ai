@@ -1,7 +1,7 @@
 from pathlib import Path
 from typing import Literal
 
-from pydantic import Field, SecretStr
+from pydantic import AliasChoices, Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -20,7 +20,15 @@ class Settings(BaseSettings):
     openai_model: str = "gpt-6-luna"
     persistence_backend: Literal["memory", "postgres"] = "memory"
     database_url: SecretStr | None = None
-    code_revision: str = "unknown"
+    code_revision: str = Field(
+        default="unknown",
+        validation_alias=AliasChoices(
+            "code_revision",
+            "RESOLVEAI_CODE_REVISION",
+            "CODE_REVISION",
+            "GITHUB_SHA",
+        ),
+    )
     evaluation_suite_version: str = "resolveai-benchmark-v1"
     demo_event_delay_ms: int = Field(default=180, ge=0, le=2000)
     max_agent_turns: int = Field(default=12, ge=1, le=50)

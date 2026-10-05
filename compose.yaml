@@ -24,6 +24,7 @@ services:
       OPENAI_MODEL: ${OPENAI_MODEL:-gpt-6-luna}
       PERSISTENCE_BACKEND: postgres
       DATABASE_URL: postgresql+psycopg://resolveai:resolveai@postgres:5432/resolveai
+      RESOLVEAI_CODE_REVISION: ${RESOLVEAI_CODE_REVISION:-unknown}
       DEMO_EVENT_DELAY_MS: ${DEMO_EVENT_DELAY_MS:-180}
     ports:
       - "8000:8000"

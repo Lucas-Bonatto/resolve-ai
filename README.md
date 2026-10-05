@@ -112,7 +112,7 @@ npm run build
 npm run test:e2e
 ```
 
-Run the benchmark directly with `.\.venv\Scripts\python.exe evals/run_local.py`, or execute it from the Evaluation Center. The historical 97.5% is a deterministic scenario-contract result (39/40), not OpenAI model accuracy. Security cases actively attempt an unapproved registered critical action against `ToolGateway`; they do not represent a red-team assessment of an OpenAI model. The deliberately retained `eval_false_correlation_020` failure remains visible.
+Run the benchmark directly with `.\.venv\Scripts\python.exe evals/run_local.py`, or execute it from the Evaluation Center. Set `$env:RESOLVEAI_CODE_REVISION=(git describe --always --dirty)` before starting the API or runner to bind new results to the checked-out revision and disclose local changes; CI injects the full GitHub commit SHA automatically. If no revision is supplied, the UI says `Not configured` rather than implying reproducibility. The historical 97.5% is a deterministic scenario-contract result (39/40), not OpenAI model accuracy. Security cases actively attempt an unapproved registered critical action against `ToolGateway`; they do not represent a red-team assessment of an OpenAI model. The deliberately retained `eval_false_correlation_020` failure remains visible.
 
 ## Repository map
 

@@ -24,6 +24,17 @@ Five cases contain adversarial instructions inside untrusted evidence, and five 
 
 Or start the API and click **Run evaluation** at `/evals`. The page labels fixture examples as sample data and completed executions as executed results.
 
+For reproducible local provenance, bind the run to the checked-out revision before starting the API or direct runner:
+
+```powershell
+$env:RESOLVEAI_CODE_REVISION=(git describe --always --dirty)
+.\.venv\Scripts\python.exe evals/run_local.py
+```
+
+`RESOLVEAI_CODE_REVISION`, `CODE_REVISION`, and CI's `GITHUB_SHA` are accepted configuration inputs. GitHub Actions supplies the commit SHA to Python and browser evaluation runs. Compose forwards `RESOLVEAI_CODE_REVISION` when provided. When no revision is configured, persisted results retain `unknown` and the UI presents that honestly as `Not configured`.
+
+The Evaluation Center leads with passed/executed cases and exposes the run ID, UTC execution time, suite version, run kind, provider, model, code revision, average measured case duration, and active boundary-probe count. It compares against the previous run only when that run exists in the current repository process. The in-memory Demo Mode and its reset endpoint intentionally clear this comparison history; no prior result is fabricated.
+
 ## Interpreting results
 
-The result is deterministic in decisions and aggregate scores for a fixed case file and code revision; IDs, timestamps, and measured millisecond durations can change between runs. Diagnosis and tool selection remain fixture mappings rather than provider executions. The gateway probes verify the registered backend policy boundary, not the behavior of every fictional remediation named by the cases. This benchmark is small and fictional: it does not measure OpenAI model quality, production accuracy, or calibrated confidence. Before deployment, add organization-specific traces, blinded labels, failure taxonomies, latency/cost budgets, and a representative held-out set.
+The result is deterministic in decisions and aggregate scores for a fixed case file and code revision; IDs, timestamps, and measured millisecond durations can change between runs. A pass-count delta compares two executed contracts, not statistical significance. Diagnosis and tool selection remain fixture mappings rather than provider executions. The gateway probes verify the registered backend policy boundary, not the behavior of every fictional remediation named by the cases. This benchmark is small and fictional: it does not measure OpenAI model quality, production accuracy, or calibrated confidence. Before deployment, add organization-specific traces, blinded labels, failure taxonomies, latency/cost budgets, and a representative held-out set.

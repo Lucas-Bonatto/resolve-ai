@@ -18,11 +18,10 @@
 - Staff/red-team hardening: authoritative approval reload, strict tool schemas, stale-decision protection, tool-output-backed evidence, active evaluation policy probes, protocol-level MCP verification, and tracked-file secret scanning
 - UX remediation pass 1: API-backed Command Center truth, explicit fixture labels, mobile disclosure navigation, skip navigation, active-route semantics, and 390 px overflow protection
 - UX remediation pass 2: top-level exact-action approval and validation/report outcome summaries in the flagship War Room, without duplicated state
+- UX remediation pass 3: milestone-first investigation timeline with expandable technical activity, bounded-agentic product language, and executed evaluation provenance with in-process comparison
 
 ## Next
 
-- Group the War Room into milestone-first events with expandable technical detail
-- Improve evaluation provenance and replace autonomous product claims with bounded-agentic language
 - Capture demo media and deploy the public demo
 - Calibrate real-provider confidence on a larger private evaluation set
 - Add authentication and tenant-aware authorization before any public multi-user deployment

@@ -28,6 +28,7 @@ jobs:
     env:
       DATABASE_URL: postgresql+psycopg://resolveai:resolveai@localhost:5432/resolveai_test
       TEST_DATABASE_URL: postgresql+psycopg://resolveai:resolveai@localhost:5432/resolveai_test
+      RESOLVEAI_CODE_REVISION: ${{ github.sha }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -65,6 +66,8 @@ jobs:
 
   browser:
     runs-on: ubuntu-latest
+    env:
+      RESOLVEAI_CODE_REVISION: ${{ github.sha }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5

@@ -35,6 +35,19 @@ test("flagship incident pauses for approval and resolves only after approval", a
   })).toBeVisible();
   await expect(page.getByRole("button", { name: "Approve exact rollback" })).toBeVisible();
   await expectHeadingBefore(page, "Decision required", "Investigation timeline");
+  await expect(page.getByRole("button", { name: /Milestones \d+/ })).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByText("Running query_application_logs", { exact: true })).toHaveCount(0);
+
+  await page.getByRole("button", { name: /Tools \d+/ }).click();
+  const logActivity = page.locator("details.timeline-activity").filter({ hasText: "query_application_logs" });
+  await expect(logActivity).toBeVisible();
+  await logActivity.locator("summary").click();
+  await expect(logActivity.getByText("tool.started", { exact: true })).toBeVisible();
+  await expect(logActivity.getByText("tool.completed", { exact: true })).toBeVisible();
+
+  await page.getByRole("button", { name: /Policy \d+/ }).click();
+  await expect(page.getByRole("heading", { name: "Approval requested" })).toBeVisible();
+  await page.getByRole("button", { name: /Milestones \d+/ }).click();
 
   const beforeApproval = await request.get(`${api}/api/incidents/INC-2026-0042`);
   const waiting = await beforeApproval.json();
@@ -105,7 +118,9 @@ test("approval remains inspectable and keyboard operable at narrow width", async
 test("evaluation center executes and exposes the known regression", async ({ page }) => {
   await page.goto("/evals", { waitUntil: "domcontentloaded" });
   await page.getByRole("button", { name: "Run evaluation" }).click();
-  await expect(page.getByText("Executed result")).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByText("Executed result", { exact: true })).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByRole("heading", { name: "39 / 40 cases passed" })).toBeVisible();
+  await expect(page.getByText("1 failure", { exact: true })).toBeVisible();
   await expect(page.getByText("eval_false_correlation_020")).toBeVisible();
   await expect(
     page
@@ -116,6 +131,17 @@ test("evaluation center executes and exposes the known regression", async ({ pag
   await expect(
     page.getByText("Unauthorized writes").locator("..").getByText("0", { exact: true }),
   ).toBeVisible();
+  await expect(page.getByText("Boundary probes").locator("..").getByText("30", { exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Run provenance" })).toBeVisible();
+  await expect(page.getByText("unknown", { exact: true })).toHaveCount(0);
+  await expect(page.getByText("No prior run in this process.")).toBeVisible();
+
+  await Promise.all([
+    page.waitForResponse(response => response.url().endsWith("/api/evals/run") && response.ok()),
+    page.getByRole("button", { name: "Run evaluation" }).click(),
+  ]);
+  await expect(page.getByText("Previous result").locator("..").getByText("39 / 40 passed", { exact: true })).toBeVisible();
+  await expect(page.getByText("Pass-count delta").locator("..").getByText("0 cases", { exact: true })).toBeVisible();
   await page.goto("/dashboard");
   await expect(page.getByText("39/40", { exact: true })).toBeVisible();
   await expect(page.getByText("30 active boundary probes", { exact: true })).toBeVisible();

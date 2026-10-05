@@ -1,12 +1,12 @@
 {
-  "id": "eval_b07cd7a08d6a",
+  "id": "eval_afe626adad52",
   "provider": "demo",
   "model": "deterministic-demo-v1",
   "sample_data": false,
   "suite_version": "resolveai-benchmark-v1",
   "run_kind": "deterministic-contract",
-  "code_revision": "unknown",
-  "created_at": "2026-10-01T17:52:16.829926Z",
+  "code_revision": "checkpoint-phase-4-staff-red-team-audit-3-g84686f4-dirty",
+  "created_at": "2026-10-05T12:09:25.412261Z",
   "results": [
     {
       "case_id": "eval_webhook_001",

@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { CheckIcon, IncidentIcon, SparkIcon } from "@/components/icons";
 import { StatusBadge } from "@/components/ui";
+import { InvestigationTimeline } from "@/features/war-room/investigation-timeline";
 import { API_URL, api } from "@/lib/api";
 import type {
   Approval,
@@ -21,10 +22,6 @@ function tone(state: string): "success" | "critical" | "warning" | "info" | "neu
   if (state === "AWAITING_APPROVAL" || state === "ESCALATED") return "warning";
   if (["INVESTIGATING", "DIAGNOSING", "EXECUTING", "VALIDATING"].includes(state)) return "info";
   return "neutral";
-}
-
-function time(value: string): string {
-  return new Intl.DateTimeFormat("en", { hour: "2-digit", minute: "2-digit", second: "2-digit" }).format(new Date(value));
 }
 
 function confidenceLabel(value: number): "Low" | "Medium" | "High" {
@@ -190,8 +187,6 @@ export function WarRoom({ incidentId }: { incidentId: string }) {
     finally { setBusy(false); }
   };
 
-  const orderedEvents = useMemo(() => snapshot ? [...snapshot.events].reverse() : [], [snapshot]);
-
   if (loading) return <div className="launch-state"><div><div className="launch-orbit skeleton" /><div className="skeleton" style={{ height: 30, width: 270, margin: "0 auto 10px" }} /><div className="skeleton" style={{ height: 15, width: 390, maxWidth: "90%", margin: "0 auto" }} /></div></div>;
   if (!snapshot) return <div className="launch-state"><div><div className="launch-orbit"><IncidentIcon /></div><StatusBadge tone="critical">Flagship scenario · SEV-1</StatusBadge><h2>Payment Webhook Regression</h2><p>Inject a controlled incident, then watch ResolveAI collect evidence, test hypotheses, pause at a critical rollback, and validate the outcome.</p><button className="button button-primary" disabled={busy} onClick={launch}><SparkIcon /> {busy ? "Injecting…" : "Inject incident"}</button>{error && <div className="error-banner" role="alert">{error}<br />Start the API with <code>make dev-api</code>.</div>}</div></div>;
 
@@ -212,7 +207,7 @@ export function WarRoom({ incidentId }: { incidentId: string }) {
       </aside>
 
       <section className="war-column" aria-label="Investigation">
-        <section className="war-card"><header className="war-card-head"><h3>Investigation timeline</h3><span className="status-badge status-info"><i className="live-dot" /> Event stream</span></header><div className="timeline">{orderedEvents.map(event => <article className={`timeline-event ${event.type.startsWith("tool") ? "tool" : event.type.startsWith("approval") ? "approval" : ""}`} key={event.id}><span className="timeline-time">{time(event.created_at)}</span><h4>{event.title}</h4><p>{event.summary}</p><div className="event-meta"><span>{event.type}</span><span>{event.status}</span>{typeof event.metadata.duration_ms === "number" && <span>{event.metadata.duration_ms} ms</span>}</div></article>)}</div></section>
+        <InvestigationTimeline events={snapshot.events} />
         {snapshot.diagnosis && <section className="diagnosis-card"><small>Decision summary · {confidenceLabel(snapshot.diagnosis.confidence)} heuristic confidence · {snapshot.diagnosis.outcome.replaceAll("_", " ")}</small><h3>{snapshot.diagnosis.probable_root_cause}</h3><p>{snapshot.diagnosis.summary} {snapshot.diagnosis.recommended_next_step}</p><div className="evidence-pills">{snapshot.diagnosis.evidence_ids.map(id => <span key={id}>{id}</span>)}</div></section>}
         {snapshot.remediation_plan && <section className="war-card"><header className="war-card-head"><h3>Remediation plan</h3><StatusBadge tone="critical">Critical</StatusBadge></header><div className="war-card-body"><p style={{ fontSize: 11, color: "var(--muted)", lineHeight: 1.55 }}>{snapshot.remediation_plan.summary}</p>{snapshot.remediation_plan.steps.map((step, index) => <div className="service-row" key={step.id}><span><b>{index + 1}. {step.title}</b><br /><small>{step.description}</small></span><StatusBadge tone={step.status === "SIMULATED" ? "success" : step.risk_level === "critical_write" ? "critical" : "neutral"}>{step.status}</StatusBadge></div>)}</div></section>}
       </section>

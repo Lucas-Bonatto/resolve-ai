@@ -1,5 +1,6 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
+import LandingPage from "../src/app/page";
 import { StatusBadge } from "../src/components/ui";
 import { IncidentTable } from "../src/features/incidents/incident-table";
 
@@ -16,5 +17,12 @@ describe("product UI", () => {
     });
     expect(screen.getByText("Authentication failure spike")).toBeInTheDocument();
     expect(screen.queryByText("Approved payments remain pending")).not.toBeInTheDocument();
+  });
+
+  it("describes the product as bounded agentic rather than autonomous", () => {
+    render(<LandingPage />);
+
+    expect(screen.getByText(/Bounded agentic incident/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Autonomous incident/i)).not.toBeInTheDocument();
   });
 });

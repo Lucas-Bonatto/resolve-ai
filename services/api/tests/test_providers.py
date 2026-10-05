@@ -31,3 +31,13 @@ def test_openai_key_is_held_as_a_secret() -> None:
     assert isolated.openai_api_key is not None
     assert "test-secret-value" not in str(isolated.openai_api_key)
     assert "test-secret-value" not in repr(isolated)
+
+
+def test_documented_code_revision_environment_is_loaded(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("RESOLVEAI_CODE_REVISION", "84686f4308ec")
+
+    isolated = Settings(_env_file=None)
+
+    assert isolated.code_revision == "84686f4308ec"

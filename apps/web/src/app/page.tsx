@@ -19,9 +19,9 @@ export default function LandingPage() {
 
     <section className="hero">
       <div className="hero-copy">
-        <div className="hero-kicker"><span /> Autonomous incident &amp; operations intelligence</div>
+        <div className="hero-kicker"><span /> Bounded agentic incident &amp; operations intelligence</div>
         <h1>Incidents resolved with <em>evidence.</em></h1>
-        <p>An auditable AI agent that investigates operational problems, uses enterprise tools, proposes actions, validates solutions, and keeps humans in control.</p>
+        <p>A bounded, auditable AI workflow that investigates operational problems, uses enterprise tools, proposes actions, validates solutions, and keeps humans in control.</p>
         <div className="hero-actions"><Link href="/incidents/INC-2026-0042" className="button button-primary">Launch interactive demo <ArrowIcon /></Link><a href="#architecture" className="button button-secondary">View architecture</a></div>
         <div className="trust-row"><span><CheckIcon /> Runs without an API key</span><span><CheckIcon /> No real customer data</span><span><CheckIcon /> Critical actions require approval</span></div>
       </div>
