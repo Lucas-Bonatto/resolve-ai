@@ -14,7 +14,9 @@ async def test_stdio_protocol_lists_tools_and_keeps_critical_action_proposal_onl
     )
 
     async with (
-        asyncio.timeout(15),
+        # Importing the MCP SDK in a fresh subprocess can exceed 15 seconds on
+        # supported Windows/OneDrive workspaces; keep the protocol test bounded.
+        asyncio.timeout(30),
         stdio_client(parameters) as (read_stream, write_stream),
         ClientSession(read_stream, write_stream) as session,
     ):
