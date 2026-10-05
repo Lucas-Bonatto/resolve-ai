@@ -6,13 +6,10 @@ import { ArrowIcon } from "@/components/icons";
 import { MetricCard, StatusBadge } from "@/components/ui";
 import { api } from "@/lib/api";
 import { services } from "@/lib/demo-data";
+import { executionStatusLabel, incidentStateLabel, translateDemoText } from "@/lib/locale";
 import type { EvaluationRun, Incident, IncidentState } from "@/types/domain";
 
 const terminalStates = new Set<IncidentState>(["RESOLVED", "FAILED", "ESCALATED"]);
-
-function label(value: string): string {
-  return value.toLowerCase().replaceAll("_", " ").replace(/^./, character => character.toUpperCase());
-}
 
 function incidentTone(state: IncidentState): "neutral" | "critical" | "warning" | "success" | "info" {
   if (state === "RESOLVED") return "success";
@@ -24,10 +21,10 @@ function incidentTone(state: IncidentState): "neutral" | "critical" | "warning" 
 
 function DashboardLoading() {
   return <>
-    <section className="content-grid metrics-grid" aria-label="Loading live operational metrics">
+    <section className="content-grid metrics-grid" aria-label="Carregando métricas operacionais ao vivo">
       {[0, 1, 2, 3].map(item => <article className="metric-card" key={item}><div className="skeleton" style={{ height: 12, width: "62%" }} /><div className="skeleton" style={{ height: 34, width: "48%", marginTop: "auto" }} /></article>)}
     </section>
-    <div className="dashboard-loading panel"><div className="skeleton" /><span>Loading live demo state…</span></div>
+    <div className="dashboard-loading panel"><div className="skeleton" /><span>Carregando estado da demonstração…</span></div>
   </>;
 }
 
@@ -44,8 +41,8 @@ export function DashboardOverview() {
         if (!active) return;
         setIncidents(incidentResult.status === "fulfilled" ? incidentResult.value : []);
         setLatestRun(evaluationResult.status === "fulfilled" ? evaluationResult.value[0] ?? null : null);
-        setIncidentError(incidentResult.status === "rejected" ? incidentResult.reason instanceof Error ? incidentResult.reason.message : "Incident request failed" : null);
-        setEvaluationError(evaluationResult.status === "rejected" ? evaluationResult.reason instanceof Error ? evaluationResult.reason.message : "Evaluation request failed" : null);
+        setIncidentError(incidentResult.status === "rejected" ? incidentResult.reason instanceof Error ? incidentResult.reason.message : "A solicitação de incidentes falhou" : null);
+        setEvaluationError(evaluationResult.status === "rejected" ? evaluationResult.reason instanceof Error ? evaluationResult.reason.message : "A solicitação de avaliações falhou" : null);
       });
     return () => { active = false; };
   }, []);
@@ -60,31 +57,31 @@ export function DashboardOverview() {
   const criticalViolations = latestRun
     ? (latestRun.metrics.prompt_injection_bypasses ?? 0) + (latestRun.metrics.unauthorized_critical_tool_execution ?? 0)
     : null;
-  const errors = [incidentError && `Incidents: ${incidentError}`, evaluationError && `Evaluation: ${evaluationError}`].filter(Boolean).join("; ");
+  const errors = [incidentError && `Incidentes: ${incidentError}`, evaluationError && `Avaliações: ${evaluationError}`].filter(Boolean).join("; ");
 
   return <>
-    {errors && <div className="error-banner" role="alert">Some live data is unavailable: {errors}. Fixture-only sections remain labeled below.</div>}
-    <section className="content-grid metrics-grid" aria-label="Live operational metrics">
-      <MetricCard label="Open incidents" value={incidentError ? "Unavailable" : String(openIncidents.length)} detail={incidentError ? "Incident API request failed" : "Current demo process"} tone={!incidentError && openIncidents.length ? "warn" : !incidentError ? "good" : "default"} />
-      <MetricCard label="Resolved this session" value={incidentError ? "Unavailable" : String(resolvedIncidents.length)} detail={incidentError ? "Incident API request failed" : "Validated terminal incidents"} tone={!incidentError && resolvedIncidents.length ? "good" : "default"} />
-      <MetricCard label="Latest evaluation" value={evaluationError ? "Unavailable" : latestRun ? `${passed}/${latestRun.results.length}` : "Not run"} detail={evaluationError ? "Evaluation API request failed" : latestRun ? `${failures} visible ${failures === 1 ? "failure" : "failures"}` : "No executed result in this process"} tone={!evaluationError && failures ? "warn" : !evaluationError && latestRun ? "good" : "default"} />
-      <MetricCard label="Critical-policy violations" value={evaluationError ? "Unavailable" : criticalViolations === null ? "Not measured" : String(criticalViolations)} detail={evaluationError ? "Evaluation API request failed" : latestRun ? `${probes} active boundary probes` : "Run Evaluation Center to measure"} tone={!evaluationError && criticalViolations === 0 ? "good" : !evaluationError && criticalViolations ? "warn" : "default"} />
+    {errors && <div className="error-banner" role="alert">Alguns dados ao vivo estão indisponíveis: {errors}. As áreas com dados de exemplo continuam identificadas abaixo.</div>}
+    <section className="content-grid metrics-grid" aria-label="Métricas operacionais ao vivo">
+      <MetricCard label="Incidentes abertos" value={incidentError ? "Indisponível" : String(openIncidents.length)} detail={incidentError ? "Falha na API de incidentes" : "Processo atual da demonstração"} tone={!incidentError && openIncidents.length ? "warn" : !incidentError ? "good" : "default"} />
+      <MetricCard label="Resolvidos nesta sessão" value={incidentError ? "Indisponível" : String(resolvedIncidents.length)} detail={incidentError ? "Falha na API de incidentes" : "Incidentes terminais validados"} tone={!incidentError && resolvedIncidents.length ? "good" : "default"} />
+      <MetricCard label="Avaliação mais recente" value={evaluationError ? "Indisponível" : latestRun ? `${passed}/${latestRun.results.length}` : "Não executada"} detail={evaluationError ? "Falha na API de avaliações" : latestRun ? `${failures} ${failures === 1 ? "falha visível" : "falhas visíveis"}` : "Nenhum resultado executado neste processo"} tone={!evaluationError && failures ? "warn" : !evaluationError && latestRun ? "good" : "default"} />
+      <MetricCard label="Violações de política crítica" value={evaluationError ? "Indisponível" : criticalViolations === null ? "Não medido" : String(criticalViolations)} detail={evaluationError ? "Falha na API de avaliações" : latestRun ? `${probes} sondagens ativas de limite` : "Execute a Central de avaliações para medir"} tone={!evaluationError && criticalViolations === 0 ? "good" : !evaluationError && criticalViolations ? "warn" : "default"} />
     </section>
 
     <section className="content-grid dashboard-main">
       <div className="stack">
-        <article className="panel"><header className="panel-header"><h2>Live incident queue</h2><Link href="/incidents">View all <ArrowIcon /></Link></header>
-          {incidents.length ? incidents.map(incident => <Link href={`/incidents/${incident.id}`} className="incident-row" key={incident.id}><div><h3>{incident.title}</h3><p>{incident.id} · {incident.affected_service} · {incident.affected_customers} affected</p></div><StatusBadge tone={incidentTone(incident.state)}>{incident.severity}</StatusBadge><div>{label(incident.state)}<br /><small>{incident.execution_status}</small></div></Link>) : <div className="empty-state"><strong>{incidentError ? "Live incident state is unavailable." : "No incident has been injected in this process."}</strong><p>{incidentError ? "Start the API to restore the live operational view." : "Open the flagship scenario to begin the deterministic workflow."}</p></div>}
+        <article className="panel"><header className="panel-header"><h2>Fila de incidentes ao vivo</h2><Link href="/incidents">Ver todos <ArrowIcon /></Link></header>
+          {incidents.length ? incidents.map(incident => <Link href={`/incidents/${incident.id}`} className="incident-row" key={incident.id}><div><h3>{translateDemoText(incident.title)}</h3><p>{incident.id} · {incident.affected_service} · {incident.affected_customers} afetados</p></div><StatusBadge tone={incidentTone(incident.state)}>{incident.severity}</StatusBadge><div>{incidentStateLabel(incident.state)}<br /><small>{executionStatusLabel(incident.execution_status)}</small></div></Link>) : <div className="empty-state"><strong>{incidentError ? "O estado dos incidentes ao vivo está indisponível." : "Nenhum incidente foi injetado neste processo."}</strong><p>{incidentError ? "Inicie a API para restaurar a visão operacional ao vivo." : "Abra o cenário principal para iniciar o fluxo determinístico."}</p></div>}
         </article>
-        <article className="panel"><header className="panel-header"><h2>Recent agent activity</h2><StatusBadge tone="neutral">Sample fixture history</StatusBadge></header><div className="panel-body activity-list">
-          <div className="activity-item"><b>INC-2026-0038 · Resolution validated</b><p>Authentication key rotation completed after operator approval.</p></div>
-          <div className="activity-item"><b>INC-2026-0031 · Evidence collected</b><p>Queue depth, consumer lag, and deployment window correlated.</p></div>
-          <div className="activity-item"><b>Evaluation run · 40 cases</b><p>One known false-correlation regression remains visible for review.</p></div>
+        <article className="panel"><header className="panel-header"><h2>Atividade recente do agente</h2><StatusBadge tone="neutral">Histórico de exemplo</StatusBadge></header><div className="panel-body activity-list">
+          <div className="activity-item"><b>INC-2026-0038 · Resolução validada</b><p>A rotação da chave de autenticação foi concluída após aprovação do operador.</p></div>
+          <div className="activity-item"><b>INC-2026-0031 · Evidências coletadas</b><p>Profundidade da fila, atraso do consumidor e janela de implantação foram correlacionados.</p></div>
+          <div className="activity-item"><b>Execução da avaliação · 40 casos</b><p>Uma regressão conhecida de correlação incorreta continua visível para revisão.</p></div>
         </div></article>
       </div>
       <div className="stack">
-        <article className="panel"><header className="panel-header"><h2>Service health</h2><StatusBadge tone="neutral">Sample fixture</StatusBadge></header><div className="panel-body">{services.map(service => <div className="service-row" key={service.name}><span><i className={`health-dot ${service.status === "Degraded" ? "degraded" : ""}`} />{service.name}</span><small>{service.latency}</small></div>)}</div></article>
-        <article className="panel"><header className="panel-header"><h2>Evaluation posture</h2><Link href="/evals">Open center</Link></header><div className="panel-body"><div className="diagnosis-card"><small>{evaluationError ? "Evaluation unavailable" : latestRun ? "Executed deterministic result" : "Not executed in this process"}</small><h3>{evaluationError ? "Result status could not be verified" : latestRun ? `${passed} of ${latestRun.results.length} cases passed` : "Run before claiming results"}</h3><p>{evaluationError ? "The evaluation API request failed; no benchmark claim is shown." : latestRun ? `${failures} known ${failures === 1 ? "regression remains" : "regressions remain"} visible. Code revision: ${latestRun.code_revision}.` : "The Evaluation Center computes scenario results and actively probes the critical policy gateway."}</p><div className="evidence-pills"><span>{evaluationError ? "UNAVAILABLE" : latestRun ? `${latestRun.results.length} CASES` : "NOT EXECUTED"}</span><span>{evaluationError ? "NO CLAIM" : latestRun ? `${probes} BOUNDARY PROBES` : "NO MEASUREMENT"}</span><span>{evaluationError ? "RETRY REQUIRED" : latestRun ? `${failures} ${failures === 1 ? "FAILURE" : "FAILURES"}` : "RUN REQUIRED"}</span></div></div></div></article>
+        <article className="panel"><header className="panel-header"><h2>Saúde dos serviços</h2><StatusBadge tone="neutral">Dados de exemplo</StatusBadge></header><div className="panel-body">{services.map(service => <div className="service-row" key={service.name}><span><i className={`health-dot ${service.status === "Degradado" ? "degraded" : ""}`} />{service.name}</span><small>{service.latency}</small></div>)}</div></article>
+        <article className="panel"><header className="panel-header"><h2>Postura da avaliação</h2><Link href="/evals">Abrir central</Link></header><div className="panel-body"><div className="diagnosis-card"><small>{evaluationError ? "Avaliação indisponível" : latestRun ? "Resultado determinístico executado" : "Não executada neste processo"}</small><h3>{evaluationError ? "Não foi possível verificar o resultado" : latestRun ? `${passed} de ${latestRun.results.length} casos passaram` : "Execute antes de divulgar resultados"}</h3><p>{evaluationError ? "A solicitação à API de avaliações falhou; nenhuma afirmação sobre o benchmark é exibida." : latestRun ? `${failures} ${failures === 1 ? "regressão conhecida permanece visível" : "regressões conhecidas permanecem visíveis"}. Revisão do código: ${latestRun.code_revision}.` : "A Central de avaliações calcula os resultados dos cenários e testa ativamente o gateway de políticas críticas."}</p><div className="evidence-pills"><span>{evaluationError ? "INDISPONÍVEL" : latestRun ? `${latestRun.results.length} CASOS` : "NÃO EXECUTADA"}</span><span>{evaluationError ? "SEM AFIRMAÇÃO" : latestRun ? `${probes} SONDAGENS DE LIMITE` : "SEM MEDIÇÃO"}</span><span>{evaluationError ? "REPETIR" : latestRun ? `${failures} ${failures === 1 ? "FALHA" : "FALHAS"}` : "EXECUÇÃO NECESSÁRIA"}</span></div></div></div></article>
       </div>
     </section>
   </>;

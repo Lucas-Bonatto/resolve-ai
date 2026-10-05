@@ -10,7 +10,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   });
   if (!response.ok) {
     const payload = await response.json().catch(() => ({ message: response.statusText }));
-    throw new Error(payload.message ?? payload.detail ?? "Request failed");
+    throw new Error(payload.message ?? payload.detail ?? "A solicitação falhou");
   }
   return response.json() as Promise<T>;
 }

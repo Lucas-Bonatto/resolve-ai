@@ -55,11 +55,11 @@ describe("dashboard overview", () => {
     render(<DashboardOverview />);
 
     expect(await screen.findByText("1/2")).toBeInTheDocument();
-    expect(screen.getByText("Resolved", { exact: true })).toBeInTheDocument();
-    expect(screen.getByText("2 active boundary probes")).toBeInTheDocument();
-    expect(screen.getByText("Sample fixture history")).toBeInTheDocument();
-    expect(screen.getByText("Sample fixture")).toBeInTheDocument();
-    expect(screen.queryByText("Awaiting demo")).not.toBeInTheDocument();
+    expect(screen.getByText("Resolvido", { exact: true })).toBeInTheDocument();
+    expect(screen.getByText("2 sondagens ativas de limite")).toBeInTheDocument();
+    expect(screen.getByText("Histórico de exemplo")).toBeInTheDocument();
+    expect(screen.getByText("Dados de exemplo")).toBeInTheDocument();
+    expect(screen.queryByText("Aguardando demonstração")).not.toBeInTheDocument();
   });
 
   it("keeps incident truth visible when only evaluation data is unavailable", async () => {
@@ -67,9 +67,9 @@ describe("dashboard overview", () => {
 
     render(<DashboardOverview />);
 
-    expect(await screen.findByText("Resolved", { exact: true })).toBeInTheDocument();
-    expect(screen.getAllByText("Evaluation API request failed", { exact: true })).toHaveLength(2);
-    expect(screen.getByText("Result status could not be verified")).toBeInTheDocument();
-    expect(screen.queryByText("Not run", { exact: true })).not.toBeInTheDocument();
+    expect(await screen.findByText("Resolvido", { exact: true })).toBeInTheDocument();
+    expect(screen.getAllByText("Falha na API de avaliações", { exact: true })).toHaveLength(2);
+    expect(screen.getByText("Não foi possível verificar o resultado")).toBeInTheDocument();
+    expect(screen.queryByText("Não executada", { exact: true })).not.toBeInTheDocument();
   });
 });

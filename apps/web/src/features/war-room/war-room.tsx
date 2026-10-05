@@ -6,6 +6,7 @@ import { CheckIcon, IncidentIcon, SparkIcon } from "@/components/icons";
 import { StatusBadge } from "@/components/ui";
 import { InvestigationTimeline } from "@/features/war-room/investigation-timeline";
 import { API_URL, api } from "@/lib/api";
+import { executionStatusLabel, incidentStateLabel, sourceTypeLabel, statusLabel, translateDemoText } from "@/lib/locale";
 import type {
   Approval,
   Evidence,
@@ -24,10 +25,10 @@ function tone(state: string): "success" | "critical" | "warning" | "info" | "neu
   return "neutral";
 }
 
-function confidenceLabel(value: number): "Low" | "Medium" | "High" {
-  if (value >= 0.75) return "High";
-  if (value >= 0.45) return "Medium";
-  return "Low";
+function confidenceLabel(value: number): "Baixa" | "Média" | "Alta" {
+  if (value >= 0.75) return "Alta";
+  if (value >= 0.45) return "Média";
+  return "Baixa";
 }
 
 function PendingDecision({
@@ -42,38 +43,38 @@ function PendingDecision({
   return (
     <section className="war-card priority-card approval-live" aria-labelledby="pending-decision-title">
       <header className="war-card-head">
-        <h3 id="pending-decision-title">Decision required</h3>
-        <StatusBadge tone="critical">Critical write</StatusBadge>
+        <h3 id="pending-decision-title">Decisão necessária</h3>
+        <StatusBadge tone="critical">Escrita crítica</StatusBadge>
       </header>
       <div className="war-card-body priority-card-grid">
         <div className="priority-card-primary">
-          <span className="priority-eyebrow">Human decision checkpoint</span>
-          <h4>{approval.requested_action}</h4>
-          <p>{approval.reason}</p>
+          <span className="priority-eyebrow">Ponto de decisão humana</span>
+          <h4>{translateDemoText(approval.requested_action)}</h4>
+          <p>{translateDemoText(approval.reason)}</p>
           <div className="approval-buttons">
             <button
               className="button button-danger"
               disabled={busy}
               onClick={() => onDecide("reject")}
             >
-              Reject rollback
+              Rejeitar reversão
             </button>
             <button
               className="button button-success"
               disabled={busy}
               onClick={() => onDecide("approve")}
             >
-              <CheckIcon /> Approve exact rollback
+              <CheckIcon /> Aprovar reversão exata
             </button>
           </div>
         </div>
         <div className="priority-card-context">
           <div>
-            <span className="detail-label">Potential impact</span>
-            <p>{approval.potential_impact}</p>
+            <span className="detail-label">Impacto potencial</span>
+            <p>{translateDemoText(approval.potential_impact)}</p>
           </div>
           <div>
-            <span className="detail-label">Evidence</span>
+            <span className="detail-label">Evidências</span>
             <div className="evidence-pills">
               {approval.evidence_ids.map(id => <span key={id}>{id}</span>)}
             </div>
@@ -97,34 +98,34 @@ function ResolutionOutcome({
       aria-labelledby="resolution-outcome-title"
     >
       <header className="war-card-head">
-        <h3 id="resolution-outcome-title">Resolution outcome</h3>
+        <h3 id="resolution-outcome-title">Resultado da resolução</h3>
         <StatusBadge tone={validation.passed ? "success" : "critical"}>
-          {validation.passed ? "Validated" : "Validation failed"}
+          {validation.passed ? "Validado" : "Falha na validação"}
         </StatusBadge>
       </header>
       <div className="war-card-body outcome-grid">
         <div className="outcome-summary">
-          <span className="priority-eyebrow">Post-remediation validation</span>
-          <h4>{validation.summary}</h4>
-          <div className="outcome-metrics" aria-label="Validation metrics">
-            <div><span>Checks</span><b>{validation.checks_passed} passed · {validation.checks_failed} failed</b></div>
-            <div><span>Transactions recovered</span><b>{validation.recovered_transactions}</b></div>
+          <span className="priority-eyebrow">Validação pós-remediação</span>
+          <h4>{translateDemoText(validation.summary)}</h4>
+          <div className="outcome-metrics" aria-label="Métricas de validação">
+            <div><span>Verificações</span><b>{validation.checks_passed} passaram · {validation.checks_failed} falharam</b></div>
+            <div><span>Transações recuperadas</span><b>{validation.recovered_transactions}</b></div>
           </div>
-          <div className="evidence-pills" aria-label="Validation evidence">
+          <div className="evidence-pills" aria-label="Evidências de validação">
             {validation.evidence_ids.map(id => <span key={id}>{id}</span>)}
           </div>
         </div>
         {report && (
           <div className="outcome-report">
             <div className="outcome-report-heading">
-              <h4>Incident report</h4>
-              <StatusBadge tone={tone(report.final_status)}>{report.final_status}</StatusBadge>
+              <h4>Relatório do incidente</h4>
+              <StatusBadge tone={tone(report.final_status)}>{statusLabel(report.final_status)}</StatusBadge>
             </div>
-            <p>{report.summary}</p>
+            <p>{translateDemoText(report.summary)}</p>
             <div className="outcome-report-meta">
-              <span>{report.evidence_ids.length} evidence references</span>
-              <span>{report.hypothesis_ids.length} hypotheses considered</span>
-              <span>Correlation {report.correlation_id}</span>
+              <span>{report.evidence_ids.length} referências de evidência</span>
+              <span>{report.hypothesis_ids.length} hipóteses consideradas</span>
+              <span>Correlação {report.correlation_id}</span>
             </div>
           </div>
         )}
@@ -148,7 +149,7 @@ export function WarRoom({ incidentId }: { incidentId: string }) {
       setSnapshot(next);
       setError(null);
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : "Could not refresh incident");
+      setError(requestError instanceof Error ? requestError.message : "Não foi possível atualizar o incidente");
     } finally {
       setLoading(false);
     }
@@ -174,14 +175,14 @@ export function WarRoom({ incidentId }: { incidentId: string }) {
     const cursor = lastEventId ? `?after_id=${encodeURIComponent(lastEventId)}` : "";
     const events = new EventSource(`${API_URL}/api/incidents/${incidentId}/events/stream${cursor}`);
     events.addEventListener("incident", () => { void refresh(); });
-    events.onerror = () => setError("Live stream interrupted. ResolveAI will reconnect automatically.");
+    events.onerror = () => setError("O fluxo ao vivo foi interrompido. O ResolveAI tentará reconectar automaticamente.");
     return () => events.close();
   }, [incidentId, incidentState, lastEventId, refresh]);
 
   const launch = async () => {
     setBusy(true); setError(null);
     try { await api.injectFlagship(); await refresh(); }
-    catch (requestError) { setError(requestError instanceof Error ? requestError.message : "Could not launch the demo"); }
+    catch (requestError) { setError(requestError instanceof Error ? requestError.message : "Não foi possível iniciar a demonstração"); }
     finally { setBusy(false); setLoading(false); }
   };
 
@@ -189,7 +190,7 @@ export function WarRoom({ incidentId }: { incidentId: string }) {
     if (!snapshot?.approval) return;
     setBusy(true); setError(null);
     try { await api.decide(snapshot.approval.id, decision); await refresh(); }
-    catch (requestError) { setError(requestError instanceof Error ? requestError.message : "Decision could not be recorded"); }
+    catch (requestError) { setError(requestError instanceof Error ? requestError.message : "Não foi possível registrar a decisão"); }
     finally { setBusy(false); }
   };
 
@@ -202,11 +203,11 @@ export function WarRoom({ incidentId }: { incidentId: string }) {
   };
 
   if (loading) return <div className="launch-state"><div><div className="launch-orbit skeleton" /><div className="skeleton" style={{ height: 30, width: 270, margin: "0 auto 10px" }} /><div className="skeleton" style={{ height: 15, width: 390, maxWidth: "90%", margin: "0 auto" }} /></div></div>;
-  if (!snapshot) return <div className="launch-state"><div><div className="launch-orbit"><IncidentIcon /></div><StatusBadge tone="critical">Flagship scenario · SEV-1</StatusBadge><h2>Payment Webhook Regression</h2><p>Inject a controlled incident, then watch ResolveAI collect evidence, test hypotheses, pause at a critical rollback, and validate the outcome.</p><button className="button button-primary" disabled={busy} onClick={launch}><SparkIcon /> {busy ? "Injecting…" : "Inject incident"}</button>{error && <div className="error-banner" role="alert">{error}<br />Start the API with <code>make dev-api</code>.</div>}</div></div>;
+  if (!snapshot) return <div className="launch-state"><div><div className="launch-orbit"><IncidentIcon /></div><StatusBadge tone="critical">Cenário principal · SEV-1</StatusBadge><h2>Regressão no webhook de pagamentos</h2><p>Injete um incidente controlado e acompanhe o ResolveAI coletar evidências, testar hipóteses, pausar em uma reversão crítica e validar o resultado.</p><button className="button button-primary" disabled={busy} onClick={launch}><SparkIcon /> {busy ? "Injetando…" : "Injetar incidente"}</button>{error && <div className="error-banner" role="alert">{error}<br />Inicie a API com <code>make dev-api</code>.</div>}</div></div>;
 
   return <>
-    <section className="war-header"><div><p className="breadcrumb">{snapshot.incident.id} / Incident war room</p><h2>{snapshot.incident.title}</h2><p>{snapshot.incident.description}</p></div><div className="war-meta"><StatusBadge tone="critical">{snapshot.incident.severity}</StatusBadge><StatusBadge tone={tone(snapshot.incident.state)}>{snapshot.incident.state.replaceAll("_", " ")}</StatusBadge><StatusBadge tone="neutral">{snapshot.incident.execution_status}</StatusBadge></div></section>
-    <p className="sr-only" role="status" aria-live="polite" aria-atomic="true">Incident state: {snapshot.incident.state.replaceAll("_", " ").toLowerCase()}.</p>
+    <section className="war-header"><div><p className="breadcrumb">{snapshot.incident.id} / Sala de crise</p><h2>{translateDemoText(snapshot.incident.title)}</h2><p>{translateDemoText(snapshot.incident.description)}</p></div><div className="war-meta"><StatusBadge tone="critical">{snapshot.incident.severity}</StatusBadge><StatusBadge tone={tone(snapshot.incident.state)}>{incidentStateLabel(snapshot.incident.state)}</StatusBadge><StatusBadge tone="neutral">{executionStatusLabel(snapshot.incident.execution_status)}</StatusBadge></div></section>
+    <p className="sr-only" role="status" aria-live="polite" aria-atomic="true">Estado do incidente: {incidentStateLabel(snapshot.incident.state).toLowerCase()}.</p>
     {error && <div className="error-banner" role="alert">{error}</div>}
     {snapshot.approval?.status === "PENDING" && (
       <PendingDecision approval={snapshot.approval} busy={busy} onDecide={decide} />
@@ -216,21 +217,21 @@ export function WarRoom({ incidentId }: { incidentId: string }) {
     )}
     <div className="war-grid">
       <aside className="war-column">
-        <section className="war-card"><header className="war-card-head"><h3>Incident summary</h3><StatusBadge tone="neutral">Live</StatusBadge></header><div className="war-card-body summary-list"><div><span>Affected service</span><b>{snapshot.incident.affected_service}</b></div><div><span>Customers</span><b>{snapshot.incident.affected_customers}</b></div><div><span>Evidence</span><b>{snapshot.evidence.length} records</b></div><div><span>Tool calls</span><b>{snapshot.tool_calls.length}</b></div><div><span>Provider</span><b>{snapshot.run?.provider ?? "Starting"}</b></div><div><span>Correlation ID</span><b>{snapshot.incident.correlation_id}</b></div><div><span>Trace ID</span>{snapshot.run ? <Link href={`/runs/${snapshot.run.id}`}><b>{snapshot.run.trace_id}</b></Link> : <b>—</b>}</div></div></section>
-        <section className="war-card"><header className="war-card-head"><h3>Evidence locker</h3><span className="status-badge status-neutral">{snapshot.evidence.length}</span></header><div className="war-card-body evidence-grid">{snapshot.evidence.length ? snapshot.evidence.map(item => <button className="evidence-button" key={item.id} ref={node => { evidenceButtonRefs.current[item.id] = node; }} onClick={() => setSelected(item)} aria-label={`Inspect evidence ${item.id}`} aria-expanded={selected?.id === item.id} aria-controls={selected?.id === item.id ? "selected-evidence-detail" : undefined}><span className="evidence-type">{item.source_type.slice(0, 3)}</span><span><b>{item.id}</b><span>{item.title}</span></span><strong>{Math.round(item.relevance * 100)}%</strong></button>) : <div className="empty-state"><strong>No evidence collected yet.</strong><p>Evidence will appear when validated tool results enter the incident record.</p></div>}</div></section>
-        {selected && <section className="war-card" id="selected-evidence-detail" aria-labelledby="selected-evidence-title"><header className="war-card-head"><h3 id="selected-evidence-title" tabIndex={-1} ref={evidenceHeadingRef}>{selected.id}</h3><button className="button button-secondary evidence-close" onClick={closeEvidence}>Close evidence</button></header><div className="war-card-body"><p style={{ fontSize: 11, lineHeight: 1.55, marginTop: 0 }}>{selected.summary}</p><pre tabIndex={0} aria-label={`Structured payload for evidence ${selected.id}`} style={{ overflow: "auto", fontSize: 9, background: "#f4f6f2", padding: 10, borderRadius: 8 }}>{JSON.stringify(selected.raw_payload, null, 2)}</pre></div></section>}
+        <section className="war-card"><header className="war-card-head"><h3>Resumo do incidente</h3><StatusBadge tone="neutral">Ao vivo</StatusBadge></header><div className="war-card-body summary-list"><div><span>Serviço afetado</span><b>{snapshot.incident.affected_service}</b></div><div><span>Clientes</span><b>{snapshot.incident.affected_customers}</b></div><div><span>Evidências</span><b>{snapshot.evidence.length} registros</b></div><div><span>Chamadas de ferramentas</span><b>{snapshot.tool_calls.length}</b></div><div><span>Provedor</span><b>{snapshot.run?.provider ?? "Iniciando"}</b></div><div><span>ID de correlação</span><b>{snapshot.incident.correlation_id}</b></div><div><span>ID de rastreamento</span>{snapshot.run ? <Link href={`/runs/${snapshot.run.id}`}><b>{snapshot.run.trace_id}</b></Link> : <b>—</b>}</div></div></section>
+        <section className="war-card"><header className="war-card-head"><h3>Repositório de evidências</h3><span className="status-badge status-neutral">{snapshot.evidence.length}</span></header><div className="war-card-body evidence-grid">{snapshot.evidence.length ? snapshot.evidence.map(item => <button className="evidence-button" key={item.id} ref={node => { evidenceButtonRefs.current[item.id] = node; }} onClick={() => setSelected(item)} aria-label={`Inspecionar evidência ${item.id}`} aria-expanded={selected?.id === item.id} aria-controls={selected?.id === item.id ? "selected-evidence-detail" : undefined}><span className="evidence-type">{sourceTypeLabel(item.source_type)}</span><span><b>{item.id}</b><span>{translateDemoText(item.title)}</span></span><strong>{Math.round(item.relevance * 100)}%</strong></button>) : <div className="empty-state"><strong>Nenhuma evidência coletada.</strong><p>As evidências aparecerão quando resultados validados de ferramentas entrarem no registro do incidente.</p></div>}</div></section>
+        {selected && <section className="war-card" id="selected-evidence-detail" aria-labelledby="selected-evidence-title"><header className="war-card-head"><h3 id="selected-evidence-title" tabIndex={-1} ref={evidenceHeadingRef}>{selected.id}</h3><button className="button button-secondary evidence-close" onClick={closeEvidence}>Fechar evidência</button></header><div className="war-card-body"><p style={{ fontSize: 11, lineHeight: 1.55, marginTop: 0 }}>{translateDemoText(selected.summary)}</p><pre tabIndex={0} aria-label={`Payload estruturado da evidência ${selected.id}`} style={{ overflow: "auto", fontSize: 9, background: "#f4f6f2", padding: 10, borderRadius: 8 }}>{JSON.stringify(selected.raw_payload, null, 2)}</pre></div></section>}
       </aside>
 
-      <section className="war-column" aria-label="Investigation">
+      <section className="war-column" aria-label="Investigação">
         <InvestigationTimeline events={snapshot.events} />
-        {snapshot.diagnosis && <section className="diagnosis-card"><small>Decision summary · {confidenceLabel(snapshot.diagnosis.confidence)} heuristic confidence · {snapshot.diagnosis.outcome.replaceAll("_", " ")}</small><h3>{snapshot.diagnosis.probable_root_cause}</h3><p>{snapshot.diagnosis.summary} {snapshot.diagnosis.recommended_next_step}</p><div className="evidence-pills">{snapshot.diagnosis.evidence_ids.map(id => <span key={id}>{id}</span>)}</div></section>}
-        {snapshot.remediation_plan && <section className="war-card"><header className="war-card-head"><h3>Remediation plan</h3><StatusBadge tone="critical">Critical</StatusBadge></header><div className="war-card-body"><p style={{ fontSize: 11, color: "var(--muted)", lineHeight: 1.55 }}>{snapshot.remediation_plan.summary}</p>{snapshot.remediation_plan.steps.map((step, index) => <div className="service-row" key={step.id}><span><b>{index + 1}. {step.title}</b><br /><small>{step.description}</small></span><StatusBadge tone={step.status === "SIMULATED" ? "success" : step.risk_level === "critical_write" ? "critical" : "neutral"}>{step.status}</StatusBadge></div>)}</div></section>}
+        {snapshot.diagnosis && <section className="diagnosis-card"><small>Resumo da decisão · Confiança heurística {confidenceLabel(snapshot.diagnosis.confidence).toLowerCase()} · {statusLabel(snapshot.diagnosis.outcome)}</small><h3>{translateDemoText(snapshot.diagnosis.probable_root_cause)}</h3><p>{translateDemoText(snapshot.diagnosis.summary)} {translateDemoText(snapshot.diagnosis.recommended_next_step)}</p><div className="evidence-pills">{snapshot.diagnosis.evidence_ids.map(id => <span key={id}>{id}</span>)}</div></section>}
+        {snapshot.remediation_plan && <section className="war-card"><header className="war-card-head"><h3>Plano de remediação</h3><StatusBadge tone="critical">Crítico</StatusBadge></header><div className="war-card-body"><p style={{ fontSize: 11, color: "var(--muted)", lineHeight: 1.55 }}>{translateDemoText(snapshot.remediation_plan.summary)}</p>{snapshot.remediation_plan.steps.map((step, index) => <div className="service-row" key={step.id}><span><b>{index + 1}. {translateDemoText(step.title)}</b><br /><small>{translateDemoText(step.description)}</small></span><StatusBadge tone={step.status === "SIMULATED" ? "success" : step.risk_level === "critical_write" ? "critical" : "neutral"}>{executionStatusLabel(step.status)}</StatusBadge></div>)}</div></section>}
       </section>
 
       <aside className="war-column">
-        <section className="war-card"><header className="war-card-head"><h3>Hypothesis engine</h3><span className="status-badge status-neutral">{snapshot.hypotheses.length}</span></header><div className="war-card-body">{snapshot.hypotheses.length ? snapshot.hypotheses.map(item => <article className="hypothesis" key={item.id}><div className="hypothesis-head"><h4>{item.title}</h4><small>{confidenceLabel(item.confidence)} · {item.status}</small></div><div className="confidence-bar"><span style={{ width: `${item.confidence * 100}%` }} /></div><p>{item.description}</p><small>Verify: {item.verification_strategy}</small>{(item.evidence_for.length > 0 || item.evidence_against.length > 0) && <div className="evidence-pills" aria-label={`Evidence for ${item.title}`}>{item.evidence_for.map(id => <span key={`for-${id}`}>Supports {id}</span>)}{item.evidence_against.map(id => <span key={`against-${id}`}>Contradicts {id}</span>)}</div>}</article>) : <div className="empty-state"><strong>Hypotheses are forming.</strong><p>ResolveAI does not jump directly to a root cause.</p></div>}</div></section>
-        {snapshot.approval?.status !== "PENDING" && <section className="war-card"><header className="war-card-head"><h3>Human approvals</h3></header><div className="empty-state"><strong>{snapshot.approval ? `Decision: ${snapshot.approval.status}` : "No decision waiting on you."}</strong><p>{snapshot.approval ? `Recorded for ${snapshot.approval.requested_action}.` : "ResolveAI has no critical action pending approval."}</p></div></section>}
-        <section className="war-card"><header className="war-card-head"><h3>Permission boundary</h3><StatusBadge tone="success">Enforced</StatusBadge></header><div className="war-card-body summary-list"><div><span>Read tools</span><b>Automatic</b></div><div><span>Safe writes</span><b>Audited</b></div><div><span>Critical writes</span><b>Approval</b></div><div><span>Policy owner</span><b>Backend</b></div></div></section>
+        <section className="war-card"><header className="war-card-head"><h3>Motor de hipóteses</h3><span className="status-badge status-neutral">{snapshot.hypotheses.length}</span></header><div className="war-card-body">{snapshot.hypotheses.length ? snapshot.hypotheses.map(item => <article className="hypothesis" key={item.id}><div className="hypothesis-head"><h4>{translateDemoText(item.title)}</h4><small>{confidenceLabel(item.confidence)} · {statusLabel(item.status)}</small></div><div className="confidence-bar"><span style={{ width: `${item.confidence * 100}%` }} /></div><p>{translateDemoText(item.description)}</p><small>Verificar: {translateDemoText(item.verification_strategy)}</small>{(item.evidence_for.length > 0 || item.evidence_against.length > 0) && <div className="evidence-pills" aria-label={`Evidências da hipótese ${translateDemoText(item.title)}`}>{item.evidence_for.map(id => <span key={`for-${id}`}>Sustenta {id}</span>)}{item.evidence_against.map(id => <span key={`against-${id}`}>Contesta {id}</span>)}</div>}</article>) : <div className="empty-state"><strong>As hipóteses estão sendo formadas.</strong><p>O ResolveAI não salta diretamente para uma causa raiz.</p></div>}</div></section>
+        {snapshot.approval?.status !== "PENDING" && <section className="war-card"><header className="war-card-head"><h3>Aprovações humanas</h3></header><div className="empty-state"><strong>{snapshot.approval ? `Decisão: ${statusLabel(snapshot.approval.status)}` : "Nenhuma decisão aguardando você."}</strong><p>{snapshot.approval ? `Registrada para: ${translateDemoText(snapshot.approval.requested_action)}.` : "O ResolveAI não possui ação crítica aguardando aprovação."}</p></div></section>}
+        <section className="war-card"><header className="war-card-head"><h3>Limite de permissões</h3><StatusBadge tone="success">Aplicado</StatusBadge></header><div className="war-card-body summary-list"><div><span>Ferramentas de leitura</span><b>Automáticas</b></div><div><span>Escritas seguras</span><b>Auditadas</b></div><div><span>Escritas críticas</span><b>Aprovação</b></div><div><span>Responsável pela política</span><b>Backend</b></div></div></section>
       </aside>
     </div>
   </>;

@@ -29,11 +29,11 @@ describe("InvestigationTimeline", () => {
   it("defaults to milestones and groups tool events into one expandable activity", () => {
     render(<InvestigationTimeline events={events} />);
 
-    expect(screen.getByText("Investigation started")).toBeInTheDocument();
-    expect(screen.getByText("Approval requested")).toBeInTheDocument();
+    expect(screen.getByText("Investigação iniciada")).toBeInTheDocument();
+    expect(screen.getByText("Aprovação solicitada")).toBeInTheDocument();
     expect(screen.queryByText("query_application_logs")).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Tools 1" }));
+    fireEvent.click(screen.getByRole("button", { name: "Ferramentas 1" }));
     const tool = screen.getByText("query_application_logs").closest("details");
     expect(tool).not.toBeNull();
     expect(tool).not.toHaveAttribute("open");
@@ -47,12 +47,12 @@ describe("InvestigationTimeline", () => {
   it("offers a policy-only view without losing the complete event view", () => {
     render(<InvestigationTimeline events={events} />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Policy 1" }));
-    expect(screen.getByText("Approval requested")).toBeInTheDocument();
-    expect(screen.queryByText("Investigation started")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Política 1" }));
+    expect(screen.getByText("Aprovação solicitada")).toBeInTheDocument();
+    expect(screen.queryByText("Investigação iniciada")).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "All events 4" }));
-    expect(screen.getByText("Investigation started")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Todos os eventos 4" }));
+    expect(screen.getByText("Investigação iniciada")).toBeInTheDocument();
     expect(screen.getByText("query_application_logs")).toBeInTheDocument();
   });
 });

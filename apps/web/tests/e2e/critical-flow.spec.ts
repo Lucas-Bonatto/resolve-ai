@@ -30,33 +30,33 @@ test("flagship incident pauses for approval and resolves only after approval", a
   await waitForState(request, "AWAITING_APPROVAL");
   await page.goto("/incidents/INC-2026-0042");
   await expect(page.getByRole("heading", {
-    name: "Webhook payload schema regression introduced by deployment dep_184",
+    name: "Regressão no esquema do payload do webhook introduzida pela implantação dep_184",
     exact: true,
   })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Approve exact rollback" })).toBeVisible();
-  await expectHeadingBefore(page, "Decision required", "Investigation timeline");
-  await expect(page.getByRole("button", { name: /Milestones \d+/ })).toHaveAttribute("aria-pressed", "true");
-  await expect(page.getByText("Running query_application_logs", { exact: true })).toHaveCount(0);
-  await expect(page.getByRole("status")).toContainText("Incident state: awaiting approval.");
+  await expect(page.getByRole("button", { name: "Aprovar reversão exata" })).toBeVisible();
+  await expectHeadingBefore(page, "Decisão necessária", "Linha do tempo da investigação");
+  await expect(page.getByRole("button", { name: /Marcos \d+/ })).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByText("Executando query_application_logs", { exact: true })).toHaveCount(0);
+  await expect(page.getByRole("status")).toContainText("Estado do incidente: aguardando aprovação.");
 
-  const evidence = page.getByRole("button", { name: "Inspect evidence TXN-901" });
+  const evidence = page.getByRole("button", { name: "Inspecionar evidência TXN-901" });
   await expect(evidence).toHaveAttribute("aria-expanded", "false");
   await evidence.click();
   await expect(evidence).toHaveAttribute("aria-expanded", "true");
   await expect(page.getByRole("heading", { name: "TXN-901" })).toBeFocused();
-  await page.getByRole("button", { name: "Close evidence" }).click();
+  await page.getByRole("button", { name: "Fechar evidência" }).click();
   await expect(evidence).toBeFocused();
 
-  await page.getByRole("button", { name: /Tools \d+/ }).click();
+  await page.getByRole("button", { name: /Ferramentas \d+/ }).click();
   const logActivity = page.locator("details.timeline-activity").filter({ hasText: "query_application_logs" });
   await expect(logActivity).toBeVisible();
   await logActivity.locator("summary").click();
   await expect(logActivity.getByText("tool.started", { exact: true })).toBeVisible();
   await expect(logActivity.getByText("tool.completed", { exact: true })).toBeVisible();
 
-  await page.getByRole("button", { name: /Policy \d+/ }).click();
-  await expect(page.getByRole("heading", { name: "Approval requested" })).toBeVisible();
-  await page.getByRole("button", { name: /Milestones \d+/ }).click();
+  await page.getByRole("button", { name: /Política \d+/ }).click();
+  await expect(page.getByRole("heading", { name: "Aprovação solicitada" })).toBeVisible();
+  await page.getByRole("button", { name: /Marcos \d+/ }).click();
 
   const beforeApproval = await request.get(`${api}/api/incidents/INC-2026-0042`);
   const waiting = await beforeApproval.json();
@@ -67,13 +67,13 @@ test("flagship incident pauses for approval and resolves only after approval", a
   expect(waiting.validation).toBeNull();
 
   const approvalId = waiting.approval.id;
-  await page.getByRole("button", { name: "Approve exact rollback" }).click();
-  await expect(page.getByText("RESOLVED", { exact: true }).first()).toBeVisible({
+  await page.getByRole("button", { name: "Aprovar reversão exata" }).click();
+  await expect(page.getByText("Resolvido", { exact: true }).first()).toBeVisible({
     timeout: 10_000,
   });
-  await expect(page.getByText("Post-remediation validation passed")).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Incident report" })).toBeVisible();
-  await expectHeadingBefore(page, "Resolution outcome", "Investigation timeline");
+  await expect(page.getByRole("heading", { name: "Os 12 testes do parser passaram e todas as 37 transações pendentes foram recuperadas." })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Relatório do incidente" })).toBeVisible();
+  await expectHeadingBefore(page, "Resultado da resolução", "Linha do tempo da investigação");
 
   const resolvedResponse = await request.get(`${api}/api/incidents/INC-2026-0042`);
   const resolved = await resolvedResponse.json();
@@ -82,9 +82,9 @@ test("flagship incident pauses for approval and resolves only after approval", a
   expect(resolved.report.final_status).toBe("RESOLVED");
 
   await page.goto("/dashboard");
-  await expect(page.getByRole("link", { name: /Approved payments remain pending.*Resolved SIMULATED/ })).toBeVisible();
-  await expect(page.getByText("Resolved this session").locator("..").getByText("1", { exact: true })).toBeVisible();
-  await expect(page.getByText("1 awaiting demo launch")).toHaveCount(0);
+  await expect(page.getByRole("link", { name: /Pagamentos aprovados continuam pendentes.*Resolvido.*Simulado/ })).toBeVisible();
+  await expect(page.getByText("Resolvidos nesta sessão").locator("..").getByText("1", { exact: true })).toBeVisible();
+  await expect(page.getByText("Aguardando aprovação", { exact: true })).toHaveCount(0);
 
   const replay = await request.post(`${api}/api/approvals/${approvalId}/approve`, {
     data: { actor: "replay-attempt" },
@@ -97,9 +97,9 @@ test("rejected critical action escalates without execution", async ({ page, requ
   await request.post(`${api}/api/chaos/scenarios/payment-webhook-regression/inject`);
   await waitForState(request, "AWAITING_APPROVAL");
   await page.goto("/incidents/INC-2026-0042");
-  await page.getByRole("button", { name: "Reject rollback" }).click();
-  await expect(page.getByText("ESCALATED", { exact: true })).toBeVisible({ timeout: 10_000 });
-  await expect(page.getByText("Decision: REJECTED")).toBeVisible();
+  await page.getByRole("button", { name: "Rejeitar reversão" }).click();
+  await expect(page.getByText("Escalado", { exact: true })).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByText("Decisão: Rejeitada")).toBeVisible();
 });
 
 test("approval remains inspectable and keyboard operable at narrow width", async ({
@@ -112,49 +112,49 @@ test("approval remains inspectable and keyboard operable at narrow width", async
   await waitForState(request, "AWAITING_APPROVAL");
   await page.goto("/incidents/INC-2026-0042");
 
-  await expect(page.getByRole("heading", { name: "Decision required" })).toBeInViewport();
-  await expectHeadingBefore(page, "Decision required", "Investigation timeline");
+  await expect(page.getByRole("heading", { name: "Decisão necessária" })).toBeInViewport();
+  await expectHeadingBefore(page, "Decisão necessária", "Linha do tempo da investigação");
 
-  const approve = page.getByRole("button", { name: "Approve exact rollback" });
+  const approve = page.getByRole("button", { name: "Aprovar reversão exata" });
   await approve.scrollIntoViewIfNeeded();
   await approve.focus();
   await expect(approve).toBeFocused();
-  await expect(page.getByText("Critical write", { exact: true })).toBeVisible();
+  await expect(page.getByText("Escrita crítica", { exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Menu" })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });
 
 test("evaluation center executes and exposes the known regression", async ({ page }) => {
   await page.goto("/evals", { waitUntil: "domcontentloaded" });
-  await page.getByRole("button", { name: "Run evaluation" }).click();
-  await expect(page.getByText("Executed result", { exact: true })).toBeVisible({ timeout: 10_000 });
-  await expect(page.getByRole("heading", { name: "39 / 40 cases passed" })).toBeVisible();
-  await expect(page.getByRole("status")).toContainText("Evaluation complete. 39 of 40 cases passed. 1 failure.");
-  await expect(page.getByText("1 failure", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Executar avaliação" }).click();
+  await expect(page.getByText("Resultado executado", { exact: true })).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByRole("heading", { name: "39 / 40 casos passaram" })).toBeVisible();
+  await expect(page.getByRole("status")).toContainText("Avaliação concluída. 39 de 40 casos passaram. 1 falha.");
+  await expect(page.getByText("1 falha", { exact: true })).toBeVisible();
   await expect(page.getByText("eval_false_correlation_020")).toBeVisible();
   await expect(
     page
-      .getByText("Scenario contract success")
+      .getByText("Sucesso do contrato de cenários")
       .locator("..")
       .getByText("97.5%", { exact: true }),
   ).toBeVisible();
   await expect(
-    page.getByText("Unauthorized writes").locator("..").getByText("0", { exact: true }),
+    page.getByText("Escritas não autorizadas").locator("..").getByText("0", { exact: true }),
   ).toBeVisible();
-  await expect(page.getByText("Boundary probes").locator("..").getByText("30", { exact: true })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Run provenance" })).toBeVisible();
+  await expect(page.getByText("Sondagens de limite").locator("..").getByText("30", { exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Proveniência da execução" })).toBeVisible();
   await expect(page.getByText("unknown", { exact: true })).toHaveCount(0);
-  await expect(page.getByText("No prior run in this process.")).toBeVisible();
+  await expect(page.getByText("Nenhuma execução anterior neste processo.")).toBeVisible();
 
   await Promise.all([
     page.waitForResponse(response => response.url().endsWith("/api/evals/run") && response.ok()),
-    page.getByRole("button", { name: "Run evaluation" }).click(),
+    page.getByRole("button", { name: "Executar avaliação" }).click(),
   ]);
-  await expect(page.getByText("Previous result").locator("..").getByText("39 / 40 passed", { exact: true })).toBeVisible();
-  await expect(page.getByText("Pass-count delta").locator("..").getByText("0 cases", { exact: true })).toBeVisible();
+  await expect(page.getByText("Resultado anterior").locator("..").getByText("39 / 40 passaram", { exact: true })).toBeVisible();
+  await expect(page.getByText("Diferença de aprovações").locator("..").getByText("0 casos", { exact: true })).toBeVisible();
   await page.goto("/dashboard");
   await expect(page.getByText("39/40", { exact: true })).toBeVisible();
-  await expect(page.getByText("30 active boundary probes", { exact: true })).toBeVisible();
+  await expect(page.getByText("30 sondagens ativas de limite", { exact: true })).toBeVisible();
 });
 
 test("core data surfaces reflow at 320 pixels and retain named table regions", async ({ page }) => {
@@ -165,7 +165,7 @@ test("core data surfaces reflow at 320 pixels and retain named table regions", a
   await expect(page.getByRole("status")).toBeAttached();
 
   await page.goto("/security", { waitUntil: "domcontentloaded" });
-  await expect(page.getByRole("region", { name: "Approval invariants" })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Invariantes de aprovação" })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });
 
@@ -173,10 +173,10 @@ test("forced-colors users retain visible focus and explicit state boundaries", a
   await page.emulateMedia({ forcedColors: "active", reducedMotion: "reduce" });
   await page.goto("/security", { waitUntil: "domcontentloaded" });
 
-  const securityLink = page.getByRole("link", { name: "Security", exact: true });
+  const securityLink = page.getByRole("link", { name: "Segurança", exact: true });
   await securityLink.focus();
   await expect(securityLink).toBeFocused();
   expect(await page.evaluate(() => matchMedia("(forced-colors: active)").matches)).toBe(true);
   expect(await securityLink.evaluate(element => getComputedStyle(element).outlineStyle)).not.toBe("none");
-  await expect(page.getByText("Red · Critical write")).toBeVisible();
+  await expect(page.getByText("Vermelho · Escrita crítica")).toBeVisible();
 });

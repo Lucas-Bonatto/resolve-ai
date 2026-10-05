@@ -8,10 +8,10 @@ describe("application navigation", () => {
   it("exposes active-route semantics and an explicit mobile menu state", () => {
     render(<AppNavigation />);
 
-    expect(screen.getByRole("link", { name: "Evaluation" })).toHaveAttribute("aria-current", "page");
+    expect(screen.getByRole("link", { name: "Avaliações" })).toHaveAttribute("aria-current", "page");
     const menu = screen.getByRole("button", { name: "Menu" });
     expect(menu).toHaveAttribute("aria-expanded", "false");
     fireEvent.click(menu);
-    expect(screen.getByRole("button", { name: "Close" })).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByRole("button", { name: "Fechar" })).toHaveAttribute("aria-expanded", "true");
   });
 });

@@ -20,6 +20,7 @@
 - UX remediation pass 2: top-level exact-action approval and validation/report outcome summaries in the flagship War Room, without duplicated state
 - UX remediation pass 3: milestone-first investigation timeline with expandable technical activity, bounded-agentic product language, and executed evaluation provenance with in-process comparison
 - UX remediation pass 4: accessible skip navigation, focus and disclosure behavior, async status announcements, named table regions, targeted contrast corrections, 320 px reflow, and forced-colors coverage
+- Brazilian Portuguese product localization: public landing page, command center, incident surfaces, War Room, evaluations, security, audit, errors, accessible labels, and browser tests; canonical technical identifiers and execution labels remain visible for auditability
 
 ## Next
 

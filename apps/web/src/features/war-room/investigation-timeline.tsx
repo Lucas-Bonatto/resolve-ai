@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { StatusBadge } from "@/components/ui";
+import { executionStatusLabel, translateDemoText } from "@/lib/locale";
 import type { IncidentEvent } from "@/types/domain";
 
 type TimelineFilter = "milestones" | "tools" | "policy" | "all";
@@ -13,7 +14,7 @@ type TimelineEntry =
 const policyStates = new Set(["AWAITING_APPROVAL", "EXECUTING"]);
 
 function eventTime(value: string): string {
-  return new Intl.DateTimeFormat("en", {
+  return new Intl.DateTimeFormat("pt-BR", {
     hour: "2-digit",
     minute: "2-digit",
     second: "2-digit",
@@ -76,11 +77,11 @@ function MilestoneEvent({ event }: { event: IncidentEvent }) {
   return (
     <article className={`timeline-event${eventClass}`}>
       <span className="timeline-time">{eventTime(event.created_at)}</span>
-      <h4>{event.title}</h4>
-      <p>{event.summary}</p>
+      <h4>{translateDemoText(event.title)}</h4>
+      <p>{translateDemoText(event.summary)}</p>
       <div className="event-meta">
         <span>{event.type}</span>
-        <span>{event.status}</span>
+        <span>{executionStatusLabel(event.status)}</span>
       </div>
     </article>
   );
@@ -97,24 +98,24 @@ function TechnicalActivity({ entry }: { entry: Extract<TimelineEntry, { kind: "t
         <span className="timeline-activity-copy">
           <span className="timeline-time">{eventTime(latest.created_at)}</span>
           <b>{entry.tool}</b>
-          <small>{entry.events.length} technical {entry.events.length === 1 ? "event" : "events"}</small>
+          <small>{entry.events.length} {entry.events.length === 1 ? "evento técnico" : "eventos técnicos"}</small>
         </span>
         <span className="timeline-activity-status">
           {typeof duration === "number" && <span>{duration} ms</span>}
-          <StatusBadge tone={completed ? "info" : "warning"}>{completed ? "Completed" : "In progress"}</StatusBadge>
+          <StatusBadge tone={completed ? "info" : "warning"}>{completed ? "Concluída" : "Em execução"}</StatusBadge>
         </span>
       </summary>
       <div className="timeline-activity-detail">
         {entry.events.map(event => (
           <article key={event.id}>
             <div>
-              <b>{event.title}</b>
+              <b>{translateDemoText(event.title)}</b>
               <span>{eventTime(event.created_at)}</span>
             </div>
-            <p>{event.summary}</p>
+            <p>{translateDemoText(event.summary)}</p>
             <div className="event-meta">
               <span>{event.type}</span>
-              <span>{event.status}</span>
+              <span>{executionStatusLabel(event.status)}</span>
               <span>{event.id}</span>
             </div>
           </article>
@@ -139,21 +140,21 @@ export function InvestigationTimeline({ events }: { events: IncidentEvent[] }) {
     return entry.kind === "event";
   });
   const filters: Array<{ id: TimelineFilter; label: string; count: number }> = [
-    { id: "milestones", label: "Milestones", count: milestoneCount },
-    { id: "tools", label: "Tools", count: toolCount },
-    { id: "policy", label: "Policy", count: policyCount },
-    { id: "all", label: "All events", count: events.length },
+    { id: "milestones", label: "Marcos", count: milestoneCount },
+    { id: "tools", label: "Ferramentas", count: toolCount },
+    { id: "policy", label: "Política", count: policyCount },
+    { id: "all", label: "Todos os eventos", count: events.length },
   ];
 
   return (
     <section className="war-card">
       <header className="war-card-head">
-        <h3>Investigation timeline</h3>
-        <span className="status-badge status-info"><i className="live-dot" /> Event stream</span>
+        <h3>Linha do tempo da investigação</h3>
+        <span className="status-badge status-info"><i className="live-dot" /> Fluxo de eventos</span>
       </header>
       <div className="timeline-controls">
-        <p>{milestoneCount} milestones · {toolCount} technical activities</p>
-        <div className="timeline-filters" role="group" aria-label="Timeline filters">
+        <p>{milestoneCount} {milestoneCount === 1 ? "marco" : "marcos"} · {toolCount} {toolCount === 1 ? "atividade técnica" : "atividades técnicas"}</p>
+        <div className="timeline-filters" role="group" aria-label="Filtros da linha do tempo">
           {filters.map(item => (
             <button
               type="button"
@@ -172,7 +173,7 @@ export function InvestigationTimeline({ events }: { events: IncidentEvent[] }) {
             ? <MilestoneEvent event={entry.event} key={entry.id} />
             : <TechnicalActivity entry={entry} key={entry.id} />
         )) : (
-          <div className="timeline-empty">No events match this view yet.</div>
+          <div className="timeline-empty">Nenhum evento corresponde a esta visualização.</div>
         )}
       </div>
     </section>
