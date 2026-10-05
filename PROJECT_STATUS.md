@@ -19,6 +19,7 @@
 - UX remediation pass 1: API-backed Command Center truth, explicit fixture labels, mobile disclosure navigation, skip navigation, active-route semantics, and 390 px overflow protection
 - UX remediation pass 2: top-level exact-action approval and validation/report outcome summaries in the flagship War Room, without duplicated state
 - UX remediation pass 3: milestone-first investigation timeline with expandable technical activity, bounded-agentic product language, and executed evaluation provenance with in-process comparison
+- UX remediation pass 4: accessible skip navigation, focus and disclosure behavior, async status announcements, named table regions, targeted contrast corrections, 320 px reflow, and forced-colors coverage
 
 ## Next
 
@@ -35,6 +36,7 @@
 - A live OpenAI provider smoke test reached the API on 2026-10-01 but returned `credit_balance_exhausted`; the real-provider result is therefore `NOT_EXECUTED` until account credits are available.
 - Correlation IDs and structured audit records are implemented; production log export and tamper-evident archival are not.
 - PostgreSQL migrations and repository contracts are tested locally, but real PostgreSQL concurrency was not rerun during the Phase 4 audit because Docker/PostgreSQL were unavailable on the audit host.
+- The focused accessibility pass has automated keyboard, reflow, semantics, and forced-colors coverage, but it is not a WCAG certification; a real screen-reader session and 200% zoom review remain manual release checks.
 
 ## Important decisions
 

@@ -12,11 +12,14 @@ describe("product UI", () => {
 
   it("filters the fictional incident list", () => {
     render(<IncidentTable />);
+    expect(screen.getByRole("region", { name: "Incident results table" })).toBeInTheDocument();
+    expect(screen.getByText("Incident results", { selector: "caption" })).toBeInTheDocument();
     fireEvent.change(screen.getByPlaceholderText(/search incidents/i), {
       target: { value: "authentication" },
     });
     expect(screen.getByText("Authentication failure spike")).toBeInTheDocument();
     expect(screen.queryByText("Approved payments remain pending")).not.toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent("1 incidents match the current filters.");
   });
 
   it("describes the product as bounded agentic rather than autonomous", () => {
@@ -24,5 +27,8 @@ describe("product UI", () => {
 
     expect(screen.getByText(/Bounded agentic incident/i)).toBeInTheDocument();
     expect(screen.queryByText(/Autonomous incident/i)).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Skip to main content" })).toHaveAttribute("href", "#public-content");
+    expect(screen.queryByRole("button", { name: "Reject" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Approve exact action" })).not.toBeInTheDocument();
   });
 });

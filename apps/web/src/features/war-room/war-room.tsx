@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { CheckIcon, IncidentIcon, SparkIcon } from "@/components/icons";
 import { StatusBadge } from "@/components/ui";
 import { InvestigationTimeline } from "@/features/war-room/investigation-timeline";
@@ -139,6 +139,8 @@ export function WarRoom({ incidentId }: { incidentId: string }) {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const evidenceButtonRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+  const evidenceHeadingRef = useRef<HTMLHeadingElement | null>(null);
 
   const refresh = useCallback(async () => {
     try {
@@ -164,6 +166,10 @@ export function WarRoom({ incidentId }: { incidentId: string }) {
   const incidentState = snapshot?.incident.state;
   const lastEventId = snapshot?.events.at(-1)?.id;
   useEffect(() => {
+    if (selected) evidenceHeadingRef.current?.focus();
+  }, [selected]);
+
+  useEffect(() => {
     if (!incidentState || terminalStates.has(incidentState)) return;
     const cursor = lastEventId ? `?after_id=${encodeURIComponent(lastEventId)}` : "";
     const events = new EventSource(`${API_URL}/api/incidents/${incidentId}/events/stream${cursor}`);
@@ -187,11 +193,20 @@ export function WarRoom({ incidentId }: { incidentId: string }) {
     finally { setBusy(false); }
   };
 
+  const closeEvidence = () => {
+    const evidenceId = selected?.id;
+    setSelected(null);
+    if (evidenceId) {
+      requestAnimationFrame(() => evidenceButtonRefs.current[evidenceId]?.focus());
+    }
+  };
+
   if (loading) return <div className="launch-state"><div><div className="launch-orbit skeleton" /><div className="skeleton" style={{ height: 30, width: 270, margin: "0 auto 10px" }} /><div className="skeleton" style={{ height: 15, width: 390, maxWidth: "90%", margin: "0 auto" }} /></div></div>;
   if (!snapshot) return <div className="launch-state"><div><div className="launch-orbit"><IncidentIcon /></div><StatusBadge tone="critical">Flagship scenario · SEV-1</StatusBadge><h2>Payment Webhook Regression</h2><p>Inject a controlled incident, then watch ResolveAI collect evidence, test hypotheses, pause at a critical rollback, and validate the outcome.</p><button className="button button-primary" disabled={busy} onClick={launch}><SparkIcon /> {busy ? "Injecting…" : "Inject incident"}</button>{error && <div className="error-banner" role="alert">{error}<br />Start the API with <code>make dev-api</code>.</div>}</div></div>;
 
   return <>
     <section className="war-header"><div><p className="breadcrumb">{snapshot.incident.id} / Incident war room</p><h2>{snapshot.incident.title}</h2><p>{snapshot.incident.description}</p></div><div className="war-meta"><StatusBadge tone="critical">{snapshot.incident.severity}</StatusBadge><StatusBadge tone={tone(snapshot.incident.state)}>{snapshot.incident.state.replaceAll("_", " ")}</StatusBadge><StatusBadge tone="neutral">{snapshot.incident.execution_status}</StatusBadge></div></section>
+    <p className="sr-only" role="status" aria-live="polite" aria-atomic="true">Incident state: {snapshot.incident.state.replaceAll("_", " ").toLowerCase()}.</p>
     {error && <div className="error-banner" role="alert">{error}</div>}
     {snapshot.approval?.status === "PENDING" && (
       <PendingDecision approval={snapshot.approval} busy={busy} onDecide={decide} />
@@ -202,8 +217,8 @@ export function WarRoom({ incidentId }: { incidentId: string }) {
     <div className="war-grid">
       <aside className="war-column">
         <section className="war-card"><header className="war-card-head"><h3>Incident summary</h3><StatusBadge tone="neutral">Live</StatusBadge></header><div className="war-card-body summary-list"><div><span>Affected service</span><b>{snapshot.incident.affected_service}</b></div><div><span>Customers</span><b>{snapshot.incident.affected_customers}</b></div><div><span>Evidence</span><b>{snapshot.evidence.length} records</b></div><div><span>Tool calls</span><b>{snapshot.tool_calls.length}</b></div><div><span>Provider</span><b>{snapshot.run?.provider ?? "Starting"}</b></div><div><span>Correlation ID</span><b>{snapshot.incident.correlation_id}</b></div><div><span>Trace ID</span>{snapshot.run ? <Link href={`/runs/${snapshot.run.id}`}><b>{snapshot.run.trace_id}</b></Link> : <b>—</b>}</div></div></section>
-        <section className="war-card"><header className="war-card-head"><h3>Evidence locker</h3><span className="status-badge status-neutral">{snapshot.evidence.length}</span></header><div className="war-card-body evidence-grid">{snapshot.evidence.length ? snapshot.evidence.map(item => <button className="evidence-button" key={item.id} onClick={() => setSelected(item)} aria-label={`Inspect evidence ${item.id}`}><span className="evidence-type">{item.source_type.slice(0, 3)}</span><span><b>{item.id}</b><span>{item.title}</span></span><strong>{Math.round(item.relevance * 100)}%</strong></button>) : <div className="empty-state"><strong>No evidence collected yet.</strong><p>Evidence will appear when validated tool results enter the incident record.</p></div>}</div></section>
-        {selected && <section className="war-card"><header className="war-card-head"><h3>{selected.id}</h3><button onClick={() => setSelected(null)}>Close</button></header><div className="war-card-body"><p style={{ fontSize: 11, lineHeight: 1.55, marginTop: 0 }}>{selected.summary}</p><pre style={{ overflow: "auto", fontSize: 9, background: "#f4f6f2", padding: 10, borderRadius: 8 }}>{JSON.stringify(selected.raw_payload, null, 2)}</pre></div></section>}
+        <section className="war-card"><header className="war-card-head"><h3>Evidence locker</h3><span className="status-badge status-neutral">{snapshot.evidence.length}</span></header><div className="war-card-body evidence-grid">{snapshot.evidence.length ? snapshot.evidence.map(item => <button className="evidence-button" key={item.id} ref={node => { evidenceButtonRefs.current[item.id] = node; }} onClick={() => setSelected(item)} aria-label={`Inspect evidence ${item.id}`} aria-expanded={selected?.id === item.id} aria-controls={selected?.id === item.id ? "selected-evidence-detail" : undefined}><span className="evidence-type">{item.source_type.slice(0, 3)}</span><span><b>{item.id}</b><span>{item.title}</span></span><strong>{Math.round(item.relevance * 100)}%</strong></button>) : <div className="empty-state"><strong>No evidence collected yet.</strong><p>Evidence will appear when validated tool results enter the incident record.</p></div>}</div></section>
+        {selected && <section className="war-card" id="selected-evidence-detail" aria-labelledby="selected-evidence-title"><header className="war-card-head"><h3 id="selected-evidence-title" tabIndex={-1} ref={evidenceHeadingRef}>{selected.id}</h3><button className="button button-secondary evidence-close" onClick={closeEvidence}>Close evidence</button></header><div className="war-card-body"><p style={{ fontSize: 11, lineHeight: 1.55, marginTop: 0 }}>{selected.summary}</p><pre tabIndex={0} aria-label={`Structured payload for evidence ${selected.id}`} style={{ overflow: "auto", fontSize: 9, background: "#f4f6f2", padding: 10, borderRadius: 8 }}>{JSON.stringify(selected.raw_payload, null, 2)}</pre></div></section>}
       </aside>
 
       <section className="war-column" aria-label="Investigation">

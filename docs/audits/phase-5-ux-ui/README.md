@@ -12,7 +12,7 @@ This audit evaluates whether ResolveAI presents its evidence-first incident work
 
 The review used the running deterministic demo rather than static mockups. The flagship incident was injected, investigated, approved, validated, and resolved through the UI. The benchmark was also executed through the UI. Screens were reviewed at 1440 × 1000 and 390 × 844, with a focused keyboard check on the critical decision controls.
 
-This is a product and accessibility risk audit, not a claim of WCAG conformance. Screen-reader behavior, measured color contrast, browser zoom, forced colors, localization, and a full keyboard-only traversal still require dedicated verification.
+This is a product and accessibility risk audit, not a claim of WCAG conformance. A focused contrast, keyboard, 320 px reflow, semantics, status-message, and forced-colors remediation is recorded in [the accessibility audit](./accessibility.md). A real screen-reader session, 200% browser-zoom review, touch exploration, and localization still require manual verification.
 
 ## Executive assessment
 
@@ -191,4 +191,16 @@ Visual evidence after remediation:
 5. **Evaluation provenance — mobile.** Run identity and security context remain readable in a single column. [Screenshot 24](./screenshots/24-evaluation-provenance-mobile.jpg)
 6. **Bounded-agentic language — desktop.** The landing claim now matches the manager-style architecture. [Screenshot 25](./screenshots/25-landing-bounded-agentic-desktop.jpg)
 
-The remaining audit work is a dedicated screen-reader, zoom, forced-colors, and measured-contrast pass. Public demo media and deployment remain product-launch tasks rather than audit remediation.
+## Remediation pass 4 — 2026-10-05
+
+The fourth implementation pass completed the focused accessibility engineering review:
+
+- The public page now has skip navigation and no longer exposes visual-only approval preview controls as working buttons.
+- Focus treatment, muted text, warnings, wordmark accents, evidence metadata, and timeline timestamps were corrected after targeted rendered-color measurement.
+- Incident, Audit, Security, and Evaluation tables now have captions and named, keyboard-focusable horizontal-scroll regions.
+- Incident-state changes, filter results, and evaluation execution expose polite status messages; API failures use alerts.
+- Evidence disclosure announces expanded state, focuses the opened detail, and restores focus to its originating control on close.
+- Evaluation and Security surfaces reflow at 320 CSS px without page-level horizontal overflow.
+- Forced-colors and reduced-motion behavior now have browser regressions, alongside component coverage for skip navigation, static preview semantics, named tables, and filter announcements.
+
+Evidence, exact findings, WCAG considerations, and verification limits are documented in [the dedicated accessibility report](./accessibility.md). A real assistive-technology session and 200% zoom review remain manual release checks. Public demo media and deployment are now the next product-launch tasks.

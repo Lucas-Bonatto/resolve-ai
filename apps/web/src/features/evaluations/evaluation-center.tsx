@@ -62,9 +62,14 @@ export function EvaluationCenter() {
   const resultTone = run.sample_data ? "warning" : failures.length ? "warning" : "success";
   const scoreTone = failures.length ? "warn" : "good";
   const failureLabel = `${failures.length} ${failures.length === 1 ? "failure" : "failures"}`;
+  const liveMessage = running
+    ? "Evaluation running. 40 cases queued."
+    : run.sample_data
+      ? "No evaluation has executed in this process."
+      : `Evaluation complete. ${passed} of ${total} cases passed. ${failureLabel}.`;
 
   return <>
-    <div className="evaluation-topbar">
+    <div className="evaluation-topbar" aria-busy={running}>
       <div>
         <StatusBadge tone={resultTone}>{run.sample_data ? "Sample data" : "Executed result"}</StatusBadge>
         <p>{run.provider} · {run.model} · {run.metrics.case_count ?? total} cases</p>
@@ -73,6 +78,7 @@ export function EvaluationCenter() {
         <EvalIcon />{running ? "Running 40 cases…" : "Run evaluation"}
       </button>
     </div>
+    <p className="sr-only" role="status" aria-live="polite" aria-atomic="true">{liveMessage}</p>
     {error && <div className="error-banner" role="alert">{error}. Start the API with <code>make dev-api</code>.</div>}
     <section className={`evaluation-summary ${run.sample_data ? "evaluation-summary-empty" : failures.length ? "evaluation-summary-warning" : "evaluation-summary-success"}`} aria-labelledby="evaluation-result-title">
       <div>
@@ -102,6 +108,6 @@ export function EvaluationCenter() {
       <article className="panel"><header className="panel-header"><h2>Run provenance</h2><StatusBadge tone="neutral">{run.sample_data ? "Not executed" : "Executed"}</StatusBadge></header><div className="panel-body summary-list"><div><span>Provider</span><b>{run.provider}</b></div><div><span>Model</span><b>{run.model}</b></div><div><span>Run kind</span><b>{run.run_kind}</b></div><div><span>Suite</span><b>{run.suite_version}</b></div><div><span>Code revision</span><b>{revision(run.code_revision)}</b></div><div><span>Executed at</span><b>{run.sample_data ? "Not executed" : `${timestamp(run.created_at)} UTC`}</b></div><div><span>Cases</span><b>{total}</b></div><div><span>Known regressions</span><b>{failures.length}</b></div><div><span>Result ID</span><b>{run.id}</b></div></div></article>
     </section>
     <article className="panel evaluation-comparison"><header className="panel-header"><h2>Previous-run comparison</h2><StatusBadge tone="neutral">In-process history</StatusBadge></header>{previous ? <div className="panel-body summary-list"><div><span>Previous result</span><b>{previousPassed} / {previous.results.length} passed</b></div><div><span>Pass-count delta</span><b>{delta > 0 ? `+${delta}` : delta} cases</b></div><div><span>Previous revision</span><b>{revision(previous.code_revision)}</b></div><div><span>Previous result ID</span><b>{previous.id}</b></div></div> : <div className="empty-state"><strong>No prior run in this process.</strong><p>Run the deterministic suite again to compare executed results. Demo reset intentionally clears this local history.</p></div>}</article>
-    <article className="panel evaluation-failures"><header className="panel-header"><h2>Failing cases stay visible</h2><StatusBadge tone={run.sample_data ? "neutral" : failures.length ? "warning" : "success"}>{run.sample_data ? "Not executed" : failureLabel}</StatusBadge></header>{failures.length ? <table className="data-table"><thead><tr><th>Case</th><th>Result</th><th>Evidence recall</th><th>Failure reason</th></tr></thead><tbody>{failures.map(item => <tr key={item.case_id}><td><strong>{item.case_id}</strong></td><td><StatusBadge tone="critical">Failed</StatusBadge></td><td>{percent(item.evidence_recall)}</td><td>{item.failure_reason}</td></tr>)}</tbody></table> : <div className="empty-state"><strong>{run.sample_data ? "No evaluation has run in this process." : "No failing cases in this run."}</strong><p>{run.sample_data ? "Run the deterministic suite to compute product and security metrics." : "Compare with the previous run before promoting a provider or prompt change."}</p></div>}</article>
+    <article className="panel evaluation-failures"><header className="panel-header"><h2 id="failing-cases-title">Failing cases stay visible</h2><StatusBadge tone={run.sample_data ? "neutral" : failures.length ? "warning" : "success"}>{run.sample_data ? "Not executed" : failureLabel}</StatusBadge></header>{failures.length ? <div className="table-scroll" role="region" aria-labelledby="failing-cases-title" tabIndex={0}><table className="data-table"><caption className="sr-only">Failing evaluation cases</caption><thead><tr><th>Case</th><th>Result</th><th>Evidence recall</th><th>Failure reason</th></tr></thead><tbody>{failures.map(item => <tr key={item.case_id}><td><strong>{item.case_id}</strong></td><td><StatusBadge tone="critical">Failed</StatusBadge></td><td>{percent(item.evidence_recall)}</td><td>{item.failure_reason}</td></tr>)}</tbody></table></div> : <div className="empty-state"><strong>{run.sample_data ? "No evaluation has run in this process." : "No failing cases in this run."}</strong><p>{run.sample_data ? "Run the deterministic suite to compute product and security metrics." : "Compare with the previous run before promoting a provider or prompt change."}</p></div>}</article>
   </>;
 }

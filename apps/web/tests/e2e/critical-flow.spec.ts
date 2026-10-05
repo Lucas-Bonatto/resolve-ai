@@ -37,6 +37,15 @@ test("flagship incident pauses for approval and resolves only after approval", a
   await expectHeadingBefore(page, "Decision required", "Investigation timeline");
   await expect(page.getByRole("button", { name: /Milestones \d+/ })).toHaveAttribute("aria-pressed", "true");
   await expect(page.getByText("Running query_application_logs", { exact: true })).toHaveCount(0);
+  await expect(page.getByRole("status")).toContainText("Incident state: awaiting approval.");
+
+  const evidence = page.getByRole("button", { name: "Inspect evidence TXN-901" });
+  await expect(evidence).toHaveAttribute("aria-expanded", "false");
+  await evidence.click();
+  await expect(evidence).toHaveAttribute("aria-expanded", "true");
+  await expect(page.getByRole("heading", { name: "TXN-901" })).toBeFocused();
+  await page.getByRole("button", { name: "Close evidence" }).click();
+  await expect(evidence).toBeFocused();
 
   await page.getByRole("button", { name: /Tools \d+/ }).click();
   const logActivity = page.locator("details.timeline-activity").filter({ hasText: "query_application_logs" });
@@ -120,6 +129,7 @@ test("evaluation center executes and exposes the known regression", async ({ pag
   await page.getByRole("button", { name: "Run evaluation" }).click();
   await expect(page.getByText("Executed result", { exact: true })).toBeVisible({ timeout: 10_000 });
   await expect(page.getByRole("heading", { name: "39 / 40 cases passed" })).toBeVisible();
+  await expect(page.getByRole("status")).toContainText("Evaluation complete. 39 of 40 cases passed. 1 failure.");
   await expect(page.getByText("1 failure", { exact: true })).toBeVisible();
   await expect(page.getByText("eval_false_correlation_020")).toBeVisible();
   await expect(
@@ -145,4 +155,28 @@ test("evaluation center executes and exposes the known regression", async ({ pag
   await page.goto("/dashboard");
   await expect(page.getByText("39/40", { exact: true })).toBeVisible();
   await expect(page.getByText("30 active boundary probes", { exact: true })).toBeVisible();
+});
+
+test("core data surfaces reflow at 320 pixels and retain named table regions", async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 800 });
+
+  await page.goto("/evals", { waitUntil: "domcontentloaded" });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  await expect(page.getByRole("status")).toBeAttached();
+
+  await page.goto("/security", { waitUntil: "domcontentloaded" });
+  await expect(page.getByRole("region", { name: "Approval invariants" })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+});
+
+test("forced-colors users retain visible focus and explicit state boundaries", async ({ page }) => {
+  await page.emulateMedia({ forcedColors: "active", reducedMotion: "reduce" });
+  await page.goto("/security", { waitUntil: "domcontentloaded" });
+
+  const securityLink = page.getByRole("link", { name: "Security", exact: true });
+  await securityLink.focus();
+  await expect(securityLink).toBeFocused();
+  expect(await page.evaluate(() => matchMedia("(forced-colors: active)").matches)).toBe(true);
+  expect(await securityLink.evaluate(element => getComputedStyle(element).outlineStyle)).not.toBe("none");
+  await expect(page.getByText("Red · Critical write")).toBeVisible();
 });

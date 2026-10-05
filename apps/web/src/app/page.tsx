@@ -10,7 +10,9 @@ const workflow = [
 ];
 
 export default function LandingPage() {
-  return <main className="public-page">
+  return <>
+    <a className="skip-link" href="#public-content">Skip to main content</a>
+    <main className="public-page" id="public-content" tabIndex={-1}>
     <header className="public-nav">
       <Link href="/" className="brand"><span className="brand-mark"><MarkIcon /></span><span>Resolve<span>AI</span></span></Link>
       <nav aria-label="Public navigation"><a href="#workflow">How it works</a><a href="#security">Security</a><Link href="/evals">Evaluations</Link><Link href="/audit">Audit trail</Link></nav>
@@ -53,7 +55,7 @@ export default function LandingPage() {
 
     <section className="approval-section" id="security"><div className="approval-inner">
       <SectionTitle eyebrow="Humans remain in control" title="Reasoning can suggest. Only policy can authorize." description="The approval gateway re-validates risk, scope, expiration, incident ownership, tool-call identity, and an exact arguments hash before a critical side effect can run." />
-      <article className="approval-card-demo"><header><StatusBadge tone="warning">Approval required</StatusBadge><StatusBadge tone="critical">Critical write</StatusBadge></header><h3>Rollback webhook-worker to dep_183</h3><p>Failures began after dep_184 and a controlled regression test reproduced the parser defect.</p><div className="approval-evidence"><span>DEPLOY-184</span><span>LOG-291</span><span>TEST-012</span></div><div className="approval-actions-demo"><button className="button button-secondary">Reject</button><button className="button button-success">Approve exact action</button></div></article>
+      <article className="approval-card-demo"><header><StatusBadge tone="warning">Approval required</StatusBadge><StatusBadge tone="critical">Critical write</StatusBadge></header><h3>Rollback webhook-worker to dep_183</h3><p>Failures began after dep_184 and a controlled regression test reproduced the parser defect.</p><div className="approval-evidence"><span>DEPLOY-184</span><span>LOG-291</span><span>TEST-012</span></div><div className="approval-actions-demo" aria-label="Decision preview"><span className="button button-secondary">Reject</span><span className="button button-success">Approve exact action</span></div></article>
     </div></section>
 
     <section className="landing-section" id="architecture"><SectionTitle eyebrow="Architecture" title="Agentic where useful. Deterministic where necessary." description="FastAPI owns the workflow, permissions, evidence, and audit trail. The OpenAI Agents SDK produces typed analysis. A deterministic provider powers the same contracts for zero-cost local demos." />
@@ -67,5 +69,6 @@ export default function LandingPage() {
 
     <section className="landing-section open-source"><SectionTitle eyebrow="Open-source engineering case study" title="Inspect the claims. Reproduce the results." description="The demo is fictional. The architecture, security invariants, evaluation runner, and tests are real and inspectable." /><div className="hero-actions"><Link href="/dashboard" className="button button-primary">Open command center <ArrowIcon /></Link><Link href="/evals" className="button button-secondary">View evaluation center</Link></div></section>
     <footer className="public-footer"><Link href="/" className="brand"><span className="brand-mark"><MarkIcon /></span><span>Resolve<span>AI</span></span></Link><span>Fictional NovaPay simulation · Agents can reason. Systems must verify.</span></footer>
-  </main>;
+    </main>
+  </>;
 }
