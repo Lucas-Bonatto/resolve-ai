@@ -11,12 +11,14 @@
     "lint": "npm run lint --workspace @resolveai/web",
     "typecheck": "npm run typecheck --workspace @resolveai/web",
     "test": "npm run test --workspace @resolveai/web",
+    "test:coverage": "npm run test:coverage --workspace @resolveai/web",
     "test:e2e": "npm run test:e2e --workspace @resolveai/web"
   },
   "engines": {
     "node": ">=20.9"
   },
   "devDependencies": {
+    "@vitest/coverage-v8": "4.1.11",
     "vitest": "4.1.11"
   }
 }

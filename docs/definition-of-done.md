@@ -7,6 +7,7 @@ All tasks require a focused implementation, explicit types, validation, safe err
 - Domain ownership is outside FastAPI routes; transport code remains thin.
 - Domain errors, bounds, audit/trace fields, and failure paths are defined.
 - Ruff, MyPy, focused tests, and the full affected Python suite pass.
+- The Python coverage gate remains at or above the configured 85% project floor without excluding production code to hide misses.
 - Public contract and architecture documentation are updated.
 
 ## Frontend feature
@@ -14,6 +15,7 @@ All tasks require a focused implementation, explicit types, validation, safe err
 - Strict types match the backend contract; authorization remains server-side.
 - Loading, empty, error, narrow-layout, keyboard, focus, contrast, and data honesty are reviewed.
 - Component tests, ESLint, TypeScript, and production build pass.
+- The web coverage gate keeps statements, branches, functions, and lines above their configured floors; changed behavior has a regression test.
 - Playwright runs when workflow or a priority screen changes; meaningful visual changes include review media.
 
 ## AI behavior change

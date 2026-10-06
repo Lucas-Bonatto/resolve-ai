@@ -25,6 +25,7 @@
 - Public showcase release-candidate boundary: fail-closed deployment configuration, explicit CORS allowlist, deterministic startup snapshot, versioned evaluation result, backend-wide mutation denial, bounded local request limiting, security headers, and visibly disabled UI controls
 - Public showcase deployment readiness: Render Blueprint with exact cross-service HTTPS origins, single-instance boundaries, executed-benchmark revision provenance, packaged evaluation artifact, platform-port support, and a CI container contract smoke test
 - Pre-publication dependency hardening: Vitest upgraded to the first Node 20-compatible patched line and pytest raised past its insecure temporary-directory implementation; production npm dependencies audit clean
+- Enforced coverage baselines: all executable Python and web source is measured in CI, with an 85% Python floor and explicit web statement/branch/function/line floors based on the executed baseline
 
 ## Next
 

@@ -107,6 +107,7 @@ $env:ENABLE_REAL_AI="true"
 ```powershell
 # Python
 .\.venv\Scripts\python.exe -m pytest services/api/tests packages/novapay-mcp/tests
+.\.venv\Scripts\python.exe -m pytest services/api/tests packages/novapay-mcp/tests --cov=app --cov=novapay_mcp --cov-branch --cov-config=.coveragerc --cov-report=term-missing --cov-report=json
 .\.venv\Scripts\python.exe -m ruff check services/api packages/novapay-mcp evals
 .\.venv\Scripts\python.exe -m mypy services/api/app packages/novapay-mcp/src
 
@@ -114,11 +115,14 @@ $env:ENABLE_REAL_AI="true"
 npm run lint
 npm run typecheck
 npm test
+npm run test:coverage
 npm run build
 
 # With both local servers running
 npm run test:e2e
 ```
+
+Coverage is an enforced CI gate, not a marketing metric. The initial measured floors are 85% combined Python coverage and, for the web unit suite, 60% statements, 55% branches, 50% functions, and 65% lines. All executable source files are included even when a test does not import them; generated/type-only frontend declarations are excluded. Raise these floors as behavioral coverage grows, and never lower or exclude production code merely to pass CI.
 
 Run the benchmark directly with `.\.venv\Scripts\python.exe evals/run_local.py`, or execute it from the Evaluation Center. Set `$env:RESOLVEAI_CODE_REVISION=(git describe --always --dirty)` before starting the API or runner to bind new results to the checked-out revision and disclose local changes; CI injects the full GitHub commit SHA automatically. If no revision is supplied, the UI says `Not configured` rather than implying reproducibility. The current generated 40/40 result is deterministic scenario-contract coverage, not OpenAI model accuracy. Security cases actively attempt an unapproved registered critical action against `ToolGateway`; they do not represent a red-team assessment of an OpenAI model. Case `eval_false_correlation_020` verifies that an unrelated recent deployment is not treated as causal when provider-outage evidence is present.
 

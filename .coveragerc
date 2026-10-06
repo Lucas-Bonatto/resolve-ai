@@ -1,0 +1,13 @@
+[run]
+branch = True
+source =
+    app
+    novapay_mcp
+
+[report]
+fail_under = 85
+precision = 2
+show_missing = True
+
+[json]
+output = coverage-python.json

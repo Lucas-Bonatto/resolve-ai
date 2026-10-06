@@ -42,7 +42,8 @@ jobs:
         run: python -m alembic upgrade head
       - run: python -m ruff check services/api packages/novapay-mcp evals scripts
       - run: python -m mypy services/api/app packages/novapay-mcp/src
-      - run: python -m pytest services/api/tests packages/novapay-mcp/tests
+      - name: Run Python tests and coverage gate
+        run: python -m pytest services/api/tests packages/novapay-mcp/tests --cov=app --cov=novapay_mcp --cov-branch --cov-config=.coveragerc --cov-report=term-missing --cov-report=json
       - name: Run deterministic benchmark and active policy probes
         run: python evals/run_local.py
       - name: Scan tracked files for high-confidence secrets
@@ -61,7 +62,7 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm run typecheck
-      - run: npm test
+      - run: npm run test:coverage
       - run: npm run build
 
   public-showcase-container:

@@ -1,6 +1,6 @@
 PYTHON ?= python
 
-.PHONY: setup dev-api dev-web test test-api test-web lint typecheck build check reset-demo evals
+.PHONY: setup dev-api dev-web test test-api test-web coverage coverage-python coverage-web lint typecheck build check reset-demo evals
 
 setup:
 	npm install
@@ -19,6 +19,14 @@ test-api:
 
 test-web:
 	npm test
+
+coverage: coverage-python coverage-web
+
+coverage-python:
+	$(PYTHON) -m pytest services/api/tests packages/novapay-mcp/tests --cov=app --cov=novapay_mcp --cov-branch --cov-config=.coveragerc --cov-report=term-missing --cov-report=json
+
+coverage-web:
+	npm run test:coverage
 
 lint:
 	$(PYTHON) -m ruff check services/api packages/novapay-mcp evals scripts
