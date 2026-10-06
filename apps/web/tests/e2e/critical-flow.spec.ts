@@ -161,8 +161,9 @@ test("core data surfaces reflow at 320 pixels and retain named table regions", a
   await page.setViewportSize({ width: 320, height: 800 });
 
   await page.goto("/evals", { waitUntil: "domcontentloaded" });
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await expect(page.getByRole("status")).toBeAttached();
+  await expect(page.getByText("Resultado executado", { exact: true })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 
   await page.goto("/security", { waitUntil: "domcontentloaded" });
   await expect(page.getByRole("region", { name: "Invariantes de aprovação" })).toBeVisible();
