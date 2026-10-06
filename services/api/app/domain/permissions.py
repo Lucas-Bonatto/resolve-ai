@@ -24,6 +24,8 @@ class PermissionEngine:
         approval: Approval | None,
         incident_id: str,
         tool_call_id: str,
+        tool_name: str,
+        requested_action: str,
         arguments: dict[str, Any],
         now: datetime | None = None,
     ) -> Approval:
@@ -32,6 +34,10 @@ class PermissionEngine:
         current_time = now or utc_now()
         if approval.status != ApprovalStatus.APPROVED:
             raise ApprovalInvalid(f"Approval status is {approval.status}")
+        if approval.approved_by is None or approval.approved_at is None:
+            raise ApprovalInvalid("Approval is missing a recorded human decision")
+        if approval.approved_at > current_time:
+            raise ApprovalInvalid("Approval timestamp is invalid")
         if approval.expires_at <= current_time:
             approval.status = ApprovalStatus.EXPIRED
             raise ApprovalInvalid("Approval has expired")
@@ -39,6 +45,10 @@ class PermissionEngine:
             raise ApprovalInvalid("Approval belongs to another incident")
         if approval.tool_call_id != tool_call_id:
             raise ApprovalInvalid("Approval belongs to another tool call")
+        if approval.tool_name != tool_name:
+            raise ApprovalInvalid("Approval belongs to another tool")
+        if approval.requested_action != requested_action:
+            raise ApprovalInvalid("Approval requested action changed after approval")
         if approval.arguments_hash != arguments_hash(arguments):
             raise ApprovalInvalid("Tool arguments changed after approval")
         return approval

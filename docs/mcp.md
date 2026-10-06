@@ -8,12 +8,13 @@
 .\.venv\Scripts\python.exe -m novapay_mcp.server
 ```
 
-The package is installed in editable mode by the repository setup command. Tool schemas reject unknown fields and constrain result sizes. Critical behavior remains behind the ResolveAI application permission and approval gateway; connecting directly to this fictional server is for protocol inspection, not an authorization shortcut.
+The package is installed in editable mode by the repository setup command. Tool schemas reject unknown fields, constrain result sizes, and return no evidence ID for unknown fictional resources. Every structured result contains a server-generated `correlation_id`, evidence IDs, an execution label, and a matching sanitized audit envelope. Critical functions validate allowlisted resources and return `REQUIRE_APPROVAL` with `executed: false`; only the ResolveAI application gateway can consume an application approval. A protocol-level test starts the server over `stdio`, lists its tools, and invokes the rollback proposal.
 
 ## Design rules
 
 - Stable fictional identifiers make traces and evaluation cases repeatable.
 - Tool descriptions state risk and simulation boundaries.
 - Results are structured objects, not prose instructions.
+- MCP availability is not authorization; critical calls remain proposal-only.
 - The server exposes no arbitrary filesystem, shell, SQL, or network tool.
 - Adding a write tool requires a risk classification, audit behavior, and approval tests.

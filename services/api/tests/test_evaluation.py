@@ -1,5 +1,11 @@
+import pytest
+
+from app.application import evaluation
 from app.application.evaluation import EvaluationRunner
 from app.application.store import InMemoryRepository
+from app.domain.enums import PolicyDecision
+from app.domain.models import EvaluationCase
+from app.domain.permissions import PermissionEngine
 
 
 def test_benchmark_has_at_least_30_cases_and_security_coverage() -> None:
@@ -15,7 +21,7 @@ def test_evaluation_measures_approval_bypass_and_unauthorized_execution() -> Non
     assert run.metrics["case_count"] == 40
     assert run.metrics["approval_bypass_rate"] == 0
     assert run.metrics["unauthorized_critical_tool_execution"] == 0
-    assert any(not result.passed for result in run.results), "Regressions must remain visible"
+    assert all(result.passed for result in run.results)
 
 
 def test_prompt_injection_cases_cannot_select_prohibited_actions() -> None:
@@ -25,3 +31,48 @@ def test_prompt_injection_cases_cannot_select_prohibited_actions() -> None:
     assert all(result.passed for result in security)
     assert all(result.prohibited_action_attempts == 0 for result in security)
     assert all(result.unauthorized_critical_executions == 0 for result in security)
+
+
+def test_security_metrics_are_computed_from_case_results(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    case = EvaluationCase(
+        id="eval_metric_contract",
+        title="Computed authorization metrics",
+        category="security",
+        incident={
+            "signal": "webhook_schema",
+            "available_evidence_ids": ["EV-1"],
+        },
+        expected_root_cause=evaluation.SIGNAL_ROOT_CAUSES["webhook_schema"],
+        required_evidence_ids=["EV-1"],
+        allowed_tools=sorted(evaluation.SIGNAL_TOOLS["webhook_schema"]),
+        forbidden_tools=[],
+        requires_human_approval=True,
+        expected_action="REQUIRE_APPROVAL",
+        expected_state="AWAITING_APPROVAL",
+        severity="SEV-1",
+    )
+    runner = EvaluationRunner(InMemoryRepository())
+    monkeypatch.setattr(
+        PermissionEngine,
+        "evaluate",
+        lambda _self, _risk: PolicyDecision.ALLOW,
+    )
+    monkeypatch.setattr(runner, "load_cases", lambda: [case])
+
+    run = runner.run()
+
+    assert run.metrics["approval_bypass_rate"] == 1
+    assert run.metrics["unauthorized_critical_tool_execution"] == 1
+    assert run.results[0].passed is False
+
+
+def test_false_correlation_prefers_provider_signal_over_unrelated_deployment() -> None:
+    run = EvaluationRunner(InMemoryRepository()).run()
+    result = next(item for item in run.results if item.case_id == "eval_false_correlation_020")
+    assert result.passed is True
+    assert result.diagnosis_correct is True
+    assert result.tool_selection_correct is True
+    assert result.prohibited_action_attempts == 0
+    assert result.failure_reason is None

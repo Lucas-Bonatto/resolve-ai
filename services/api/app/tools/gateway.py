@@ -2,7 +2,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from time import perf_counter
-from typing import Any
+from typing import Any, Literal
+
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
 
 from app.application.simulator import NovaPaySimulator
 from app.application.store import InMemoryRepository
@@ -18,29 +20,117 @@ class ToolSpec:
     name: str
     risk_level: ToolRiskLevel
     description: str
+    arguments_model: type[BaseModel]
+
+
+class ToolArguments(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+
+
+class SearchTransactionsArguments(ToolArguments):
+    status: Literal["pending", "approved", "failed", "completed"] | None = None
+    provider_status: Literal["pending", "approved", "failed", "completed"] | None = None
+    limit: int = Field(default=50, ge=1, le=100)
+
+
+class ServiceArguments(ToolArguments):
+    service: str = Field(min_length=1, max_length=100)
+
+
+class LogQueryArguments(ServiceArguments):
+    query: str = Field(min_length=1, max_length=500)
+    limit: int = Field(default=50, ge=1, le=100)
+
+
+class DeploymentQueryArguments(ServiceArguments):
+    limit: int = Field(default=5, ge=1, le=20)
+
+
+class KnowledgeQueryArguments(ToolArguments):
+    query: str = Field(min_length=1, max_length=500)
+    limit: int = Field(default=10, ge=1, le=20)
+
+
+class RegressionTestArguments(ToolArguments):
+    fixture: Literal["legacy-payment-approved-v2"]
+
+
+class ValidationArguments(ToolArguments):
+    incident_id: str = Field(min_length=1, max_length=64)
+
+
+class IncidentNoteArguments(ToolArguments):
+    incident_id: str = Field(min_length=1, max_length=64)
+    note: str = Field(min_length=1, max_length=2000)
+
+
+class RollbackArguments(ServiceArguments):
+    deployment_id: str = Field(pattern=r"^dep_[0-9]{1,12}$")
+    target_deployment: str = Field(pattern=r"^dep_[0-9]{1,12}$")
+
+    @model_validator(mode="after")
+    def validate_distinct_deployments(self) -> RollbackArguments:
+        if self.deployment_id == self.target_deployment:
+            raise ValueError("Rollback source and target must differ")
+        return self
 
 
 TOOL_CATALOG = {
     spec.name: spec
     for spec in [
         ToolSpec(
-            "search_transactions", ToolRiskLevel.READ, "Search bounded fictional transactions"
+            "search_transactions",
+            ToolRiskLevel.READ,
+            "Search bounded fictional transactions",
+            SearchTransactionsArguments,
         ),
         ToolSpec(
-            "get_service_health", ToolRiskLevel.READ, "Read one allowlisted service health summary"
+            "get_service_health",
+            ToolRiskLevel.READ,
+            "Read one allowlisted service health summary",
+            ServiceArguments,
         ),
-        ToolSpec("query_application_logs", ToolRiskLevel.READ, "Search sanitized application logs"),
-        ToolSpec("get_recent_deployments", ToolRiskLevel.READ, "List recent service deployments"),
         ToolSpec(
-            "search_knowledge_base", ToolRiskLevel.READ, "Search untrusted internal documents"
+            "query_application_logs",
+            ToolRiskLevel.READ,
+            "Search sanitized application logs",
+            LogQueryArguments,
         ),
-        ToolSpec("run_regression_test", ToolRiskLevel.READ, "Run a controlled fixture test"),
-        ToolSpec("validate_remediation", ToolRiskLevel.READ, "Validate the simulated remediation"),
-        ToolSpec("create_incident_note", ToolRiskLevel.SAFE_WRITE, "Add an audited internal note"),
+        ToolSpec(
+            "get_recent_deployments",
+            ToolRiskLevel.READ,
+            "List recent service deployments",
+            DeploymentQueryArguments,
+        ),
+        ToolSpec(
+            "search_knowledge_base",
+            ToolRiskLevel.READ,
+            "Search untrusted internal documents",
+            KnowledgeQueryArguments,
+        ),
+        ToolSpec(
+            "run_regression_test",
+            ToolRiskLevel.READ,
+            "Run a controlled fixture test",
+            RegressionTestArguments,
+        ),
+        ToolSpec(
+            "validate_remediation",
+            ToolRiskLevel.READ,
+            "Validate the simulated remediation",
+            ValidationArguments,
+        ),
+        ToolSpec(
+            "create_incident_note",
+            ToolRiskLevel.SAFE_WRITE,
+            "Add an audited internal note",
+            IncidentNoteArguments,
+        ),
         ToolSpec(
             "request_service_rollback",
             ToolRiskLevel.CRITICAL_WRITE,
             "Rollback an allowlisted service",
+            RollbackArguments,
         ),
     ]
 }
@@ -55,6 +145,7 @@ ALLOWED_SERVICES = {
     "incident-service",
     "payment-provider",
 }
+ALLOWED_DEPLOYMENTS = {"dep_183", "dep_184"}
 
 
 class ToolGateway:
@@ -62,6 +153,50 @@ class ToolGateway:
         self.repository = repository
         self.simulator = simulator
         self.permissions = PermissionEngine()
+
+    def _trace_context(self, incident_id: str) -> tuple[str, str | None]:
+        data = self.repository.data(incident_id)
+        return data.incident.correlation_id, data.run.id if data.run else None
+
+    @staticmethod
+    def _requested_action(name: str, arguments: dict[str, Any]) -> str:
+        if name == "request_service_rollback":
+            return f"Rollback {arguments['service']} to {arguments['target_deployment']}"
+        return f"Execute {name}"
+
+    def _append_audit(
+        self,
+        *,
+        incident_id: str,
+        actor_type: str,
+        actor_id: str,
+        action: str,
+        resource_type: str,
+        resource_id: str,
+        result: str,
+        risk_level: ToolRiskLevel | None = None,
+        tool_call_id: str | None = None,
+        approval_id: str | None = None,
+        metadata: dict[str, Any] | None = None,
+    ) -> None:
+        correlation_id, agent_run_id = self._trace_context(incident_id)
+        self.repository.append_audit(
+            AuditRecord(
+                actor_type=actor_type,
+                actor_id=actor_id,
+                action=action,
+                resource_type=resource_type,
+                resource_id=resource_id,
+                result=result,
+                risk_level=risk_level,
+                metadata=metadata or {},
+                correlation_id=correlation_id,
+                incident_id=incident_id,
+                agent_run_id=agent_run_id,
+                tool_call_id=tool_call_id,
+                approval_id=approval_id,
+            )
+        )
 
     def _audit_blocked(
         self,
@@ -71,44 +206,65 @@ class ToolGateway:
         reason: str,
         risk_level: ToolRiskLevel | None = None,
     ) -> None:
-        self.repository.audit.append(
-            AuditRecord(
-                actor_type="TOOL",
-                actor_id=name,
-                action="tool.blocked",
-                resource_type="incident",
-                resource_id=incident_id,
-                result=ExecutionStatus.BLOCKED,
-                risk_level=risk_level,
-                metadata={"reason": reason, "arguments_hash": arguments_hash(arguments)},
-            )
+        self._append_audit(
+            incident_id=incident_id,
+            actor_type="TOOL",
+            actor_id=name,
+            action="tool.blocked",
+            resource_type="incident",
+            resource_id=incident_id,
+            result=ExecutionStatus.BLOCKED,
+            risk_level=risk_level,
+            metadata={"reason": reason, "arguments_hash": arguments_hash(arguments)},
         )
 
-    def _validate(self, incident_id: str, name: str, arguments: dict[str, Any]) -> ToolSpec:
+    def _validate(
+        self, incident_id: str, name: str, arguments: dict[str, Any]
+    ) -> tuple[ToolSpec, dict[str, Any]]:
         try:
             spec = TOOL_CATALOG[name]
         except KeyError as exc:
             self._audit_blocked(incident_id, name, arguments, "unknown_tool")
             raise ToolExecutionFailed(f"Unknown tool: {name}") from exc
-        if int(arguments.get("limit", 20)) > 100:
+        try:
+            validated = spec.arguments_model.model_validate(arguments, strict=True)
+        except ValidationError as exc:
             self._audit_blocked(
-                incident_id, name, arguments, "result_limit_exceeded", spec.risk_level
+                incident_id, name, arguments, "invalid_arguments", spec.risk_level
             )
-            raise ToolExecutionFailed("Tool result limit cannot exceed 100")
-        service = arguments.get("service")
+            raise ToolExecutionFailed("Tool arguments failed strict schema validation") from exc
+        normalized = validated.model_dump(exclude_none=True, exclude_defaults=True)
+        service = normalized.get("service")
         if service is not None and service not in ALLOWED_SERVICES:
             self._audit_blocked(
                 incident_id, name, arguments, "service_not_allowlisted", spec.risk_level
             )
             raise ToolExecutionFailed("Service is outside the NovaPay allowlist")
+        if name == "request_service_rollback" and not {
+            normalized["deployment_id"],
+            normalized["target_deployment"],
+        }.issubset(ALLOWED_DEPLOYMENTS):
+            self._audit_blocked(
+                incident_id, name, normalized, "deployment_not_allowlisted", spec.risk_level
+            )
+            raise ToolExecutionFailed("Deployment is outside the NovaPay allowlist")
+        if name in {"validate_remediation", "create_incident_note"} and (
+            normalized["incident_id"] != incident_id
+        ):
+            self._audit_blocked(
+                incident_id, name, normalized, "incident_scope_mismatch", spec.risk_level
+            )
+            raise ToolExecutionFailed("Tool arguments belong to another incident")
         if any(
-            token in str(value) for value in arguments.values() for token in ("..", ";", "&&", "|")
+            token in str(value)
+            for value in normalized.values()
+            for token in ("..", ";", "&&", "|")
         ):
             self._audit_blocked(
                 incident_id, name, arguments, "dangerous_arguments", spec.risk_level
             )
             raise ToolExecutionFailed("Potentially dangerous tool arguments were rejected")
-        return spec
+        return spec, normalized
 
     def _enforce_tool_budget(
         self, incident_id: str, name: str, arguments: dict[str, Any], risk_level: ToolRiskLevel
@@ -122,33 +278,71 @@ class ToolGateway:
     def execute_safe(
         self, incident_id: str, name: str, arguments: dict[str, Any]
     ) -> tuple[ToolCall, dict[str, Any]]:
-        spec = self._validate(incident_id, name, arguments)
+        spec, arguments = self._validate(incident_id, name, arguments)
         if self.permissions.evaluate(spec.risk_level) != PolicyDecision.ALLOW:
             self._audit_blocked(
                 incident_id, name, arguments, "approval_gateway_required", spec.risk_level
             )
             raise ApprovalInvalid("Critical tools must use the approval gateway")
         self._enforce_tool_budget(incident_id, name, arguments, spec.risk_level)
+        correlation_id, agent_run_id = self._trace_context(incident_id)
         call = ToolCall(
-            incident_id=incident_id, tool_name=name, arguments=arguments, risk_level=spec.risk_level
+            incident_id=incident_id,
+            tool_name=name,
+            arguments=arguments,
+            risk_level=spec.risk_level,
+            correlation_id=correlation_id,
+            agent_run_id=agent_run_id,
         )
-        self.repository.data(incident_id).tool_calls.append(call)
+        self.repository.add_tool_call(call)
+        self._append_audit(
+            incident_id=incident_id,
+            actor_type="AGENT",
+            actor_id="incident-coordinator",
+            action="tool.requested",
+            resource_type="tool_call",
+            resource_id=call.id,
+            result=ExecutionStatus.NOT_EXECUTED,
+            risk_level=spec.risk_level,
+            tool_call_id=call.id,
+            metadata={"arguments_hash": arguments_hash(arguments)},
+        )
         started = perf_counter()
-        output = self.simulator.execute(name, arguments)
+        try:
+            output = self.simulator.execute(name, arguments)
+        except Exception as exc:
+            call.duration_ms = max(1, int((perf_counter() - started) * 1000))
+            call.status = ExecutionStatus.BLOCKED
+            call.output_summary = f"Tool failed safely ({type(exc).__name__})"
+            self.repository.save_tool_call(call)
+            self._append_audit(
+                incident_id=incident_id,
+                actor_type="TOOL",
+                actor_id=name,
+                action="tool.failed",
+                resource_type="tool_call",
+                resource_id=call.id,
+                result=ExecutionStatus.BLOCKED,
+                risk_level=spec.risk_level,
+                tool_call_id=call.id,
+                metadata={"error_type": type(exc).__name__},
+            )
+            raise ToolExecutionFailed("Tool execution failed safely") from exc
         call.duration_ms = max(1, int((perf_counter() - started) * 1000))
         call.status = ExecutionStatus.SIMULATED
         call.output_summary = self._summarize(output)
-        self.repository.audit.append(
-            AuditRecord(
-                actor_type="TOOL",
-                actor_id=name,
-                action="tool.execute",
-                resource_type="incident",
-                resource_id=incident_id,
-                result=call.status,
-                risk_level=spec.risk_level,
-                metadata={"tool_call_id": call.id, "arguments_hash": arguments_hash(arguments)},
-            )
+        self.repository.save_tool_call(call)
+        self._append_audit(
+            incident_id=incident_id,
+            actor_type="TOOL",
+            actor_id=name,
+            action="tool.execute",
+            resource_type="tool_call",
+            resource_id=call.id,
+            result=call.status,
+            risk_level=spec.risk_level,
+            tool_call_id=call.id,
+            metadata={"arguments_hash": arguments_hash(arguments)},
         )
         return call, output
 
@@ -162,44 +356,87 @@ class ToolGateway:
         evidence_ids: list[str],
         impact: str,
     ) -> tuple[ToolCall, Approval]:
-        spec = self._validate(incident_id, name, arguments)
+        spec, arguments = self._validate(incident_id, name, arguments)
         if self.permissions.evaluate(spec.risk_level) != PolicyDecision.REQUIRE_APPROVAL:
             self._audit_blocked(
                 incident_id, name, arguments, "critical_tool_required", spec.risk_level
             )
             raise ToolExecutionFailed("Only critical tools create approval requests")
         self._enforce_tool_budget(incident_id, name, arguments, spec.risk_level)
+        correlation_id, agent_run_id = self._trace_context(incident_id)
         call = ToolCall(
-            incident_id=incident_id, tool_name=name, arguments=arguments, risk_level=spec.risk_level
+            incident_id=incident_id,
+            tool_name=name,
+            arguments=arguments,
+            risk_level=spec.risk_level,
+            correlation_id=correlation_id,
+            agent_run_id=agent_run_id,
         )
         approval = Approval(
             incident_id=incident_id,
             tool_call_id=call.id,
-            requested_action=f"Rollback {arguments['service']} to {arguments['target_deployment']}",
+            tool_name=name,
+            requested_action=self._requested_action(name, arguments),
             arguments_hash=arguments_hash(arguments),
             reason=reason,
             evidence_ids=evidence_ids,
             potential_impact=impact,
+            correlation_id=correlation_id,
+            agent_run_id=agent_run_id,
         )
-        data = self.repository.data(incident_id)
-        data.tool_calls.append(call)
-        data.approval = approval
-        self.repository.audit.append(
-            AuditRecord(
-                actor_type="AGENT",
-                actor_id="incident-coordinator",
-                action="approval.requested",
-                resource_type="tool_call",
-                resource_id=call.id,
-                result="PENDING",
-                risk_level=spec.risk_level,
-                metadata={"approval_id": approval.id, "arguments_hash": approval.arguments_hash},
-            )
+        self.repository.add_tool_call(call)
+        self.repository.set_approval(approval)
+        self._append_audit(
+            incident_id=incident_id,
+            actor_type="AGENT",
+            actor_id="incident-coordinator",
+            action="approval.requested",
+            resource_type="tool_call",
+            resource_id=call.id,
+            result="PENDING",
+            risk_level=spec.risk_level,
+            tool_call_id=call.id,
+            approval_id=approval.id,
+            metadata={"arguments_hash": approval.arguments_hash},
         )
         return call, approval
 
     def execute_approved(self, approval: Approval) -> tuple[ToolCall, dict[str, Any]]:
         data = self.repository.data(approval.incident_id)
+        authoritative = data.approval
+        if authoritative is None or authoritative.id != approval.id:
+            self._audit_blocked(
+                approval.incident_id,
+                approval.tool_name,
+                {},
+                "authoritative_approval_missing",
+                ToolRiskLevel.CRITICAL_WRITE,
+            )
+            raise ApprovalInvalid("Approval does not match authoritative backend state")
+        binding_fields = (
+            "incident_id",
+            "tool_call_id",
+            "tool_name",
+            "requested_action",
+            "arguments_hash",
+            "status",
+            "expires_at",
+            "approved_by",
+            "approved_at",
+        )
+        if any(
+            getattr(authoritative, field) != getattr(approval, field)
+            for field in binding_fields
+        ):
+            self._audit_blocked(
+                authoritative.incident_id,
+                authoritative.tool_name,
+                {},
+                "approval_payload_mismatch",
+                ToolRiskLevel.CRITICAL_WRITE,
+            )
+            raise ApprovalInvalid("Approval payload differs from authoritative backend state")
+        approval = authoritative
         call = next((item for item in data.tool_calls if item.id == approval.tool_call_id), None)
         if call is None:
             self._audit_blocked(
@@ -215,9 +452,25 @@ class ToolGateway:
                 approval=approval,
                 incident_id=call.incident_id,
                 tool_call_id=call.id,
+                tool_name=call.tool_name,
+                requested_action=self._requested_action(call.tool_name, call.arguments),
                 arguments=call.arguments,
             )
         except ApprovalInvalid:
+            if approval.status == ApprovalStatus.EXPIRED:
+                self.repository.save_approval(approval)
+                self._append_audit(
+                    incident_id=call.incident_id,
+                    actor_type="SYSTEM",
+                    actor_id="permission-engine",
+                    action="approval.expired",
+                    resource_type="approval",
+                    resource_id=approval.id,
+                    result=ApprovalStatus.EXPIRED,
+                    risk_level=call.risk_level,
+                    tool_call_id=call.id,
+                    approval_id=approval.id,
+                )
             self._audit_blocked(
                 call.incident_id,
                 call.tool_name,
@@ -226,24 +479,117 @@ class ToolGateway:
                 call.risk_level,
             )
             raise
-        # Consume before the side effect so a failure cannot make the approval replayable.
-        approval.status = ApprovalStatus.CONSUMED
+        spec, validated_arguments = self._validate(
+            call.incident_id, call.tool_name, call.arguments
+        )
+        if validated_arguments != call.arguments:
+            self._audit_blocked(
+                call.incident_id,
+                call.tool_name,
+                call.arguments,
+                "approved_arguments_not_canonical",
+                call.risk_level,
+            )
+            raise ApprovalInvalid("Approved tool arguments are not canonical")
+        if (
+            spec.risk_level != ToolRiskLevel.CRITICAL_WRITE
+            or call.risk_level != spec.risk_level
+        ):
+            self._audit_blocked(
+                call.incident_id,
+                call.tool_name,
+                call.arguments,
+                "approved_tool_risk_mismatch",
+                call.risk_level,
+            )
+            raise ApprovalInvalid("Approved tool is not an authoritative critical action")
+        self._append_audit(
+            incident_id=call.incident_id,
+            actor_type="TOOL",
+            actor_id=call.tool_name,
+            action="critical_execution.attempted",
+            resource_type="tool_call",
+            resource_id=call.id,
+            result=ExecutionStatus.NOT_EXECUTED,
+            risk_level=call.risk_level,
+            tool_call_id=call.id,
+            approval_id=approval.id,
+        )
+        # Atomic consumption happens before the side effect, including across DB workers.
+        self.repository.consume_approval(approval)
+        self._append_audit(
+            incident_id=call.incident_id,
+            actor_type="SYSTEM",
+            actor_id="permission-engine",
+            action="approval.consumed",
+            resource_type="approval",
+            resource_id=approval.id,
+            result=ApprovalStatus.CONSUMED,
+            risk_level=call.risk_level,
+            tool_call_id=call.id,
+            approval_id=approval.id,
+        )
+        self._append_audit(
+            incident_id=call.incident_id,
+            actor_type="SYSTEM",
+            actor_id="permission-engine",
+            action="critical_execution.permitted",
+            resource_type="tool_call",
+            resource_id=call.id,
+            result="ALLOWED",
+            risk_level=call.risk_level,
+            tool_call_id=call.id,
+            approval_id=approval.id,
+        )
         started = perf_counter()
-        output = self.simulator.execute(call.tool_name, call.arguments)
+        try:
+            output = self.simulator.execute(call.tool_name, call.arguments)
+        except Exception as exc:
+            call.duration_ms = max(1, int((perf_counter() - started) * 1000))
+            call.status = ExecutionStatus.BLOCKED
+            call.output_summary = f"Critical tool failed safely ({type(exc).__name__})"
+            self.repository.save_tool_call(call)
+            self._append_audit(
+                incident_id=call.incident_id,
+                actor_type="TOOL",
+                actor_id=call.tool_name,
+                action="critical_execution.failed",
+                resource_type="tool_call",
+                resource_id=call.id,
+                result=ExecutionStatus.BLOCKED,
+                risk_level=call.risk_level,
+                tool_call_id=call.id,
+                approval_id=approval.id,
+                metadata={"error_type": type(exc).__name__},
+            )
+            raise ToolExecutionFailed("Approved tool execution failed safely") from exc
         call.duration_ms = max(1, int((perf_counter() - started) * 1000))
         call.status = ExecutionStatus.SIMULATED
         call.output_summary = self._summarize(output)
-        self.repository.audit.append(
-            AuditRecord(
-                actor_type="TOOL",
-                actor_id=call.tool_name,
-                action="tool.execute.approved",
-                resource_type="incident",
-                resource_id=call.incident_id,
-                result=call.status,
-                risk_level=call.risk_level,
-                metadata={"approval_id": approval.id, "tool_call_id": call.id},
-            )
+        self.repository.save_tool_call(call)
+        self._append_audit(
+            incident_id=call.incident_id,
+            actor_type="TOOL",
+            actor_id=call.tool_name,
+            action="tool.execute.approved",
+            resource_type="tool_call",
+            resource_id=call.id,
+            result=call.status,
+            risk_level=call.risk_level,
+            tool_call_id=call.id,
+            approval_id=approval.id,
+        )
+        self._append_audit(
+            incident_id=call.incident_id,
+            actor_type="SYSTEM",
+            actor_id="incident-coordinator",
+            action="remediation.executed",
+            resource_type="incident",
+            resource_id=call.incident_id,
+            result=call.status,
+            risk_level=call.risk_level,
+            tool_call_id=call.id,
+            approval_id=approval.id,
         )
         return call, output
 

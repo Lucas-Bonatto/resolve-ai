@@ -11,13 +11,15 @@ This map points to ownership boundaries and primary tests, not every file.
 | Tool registry, validation, budgets, audit, execution | `services/api/app/tools/gateway.py` | `services/api/tests/test_permissions.py` |
 | Incident coordinator and approval flow | `services/api/app/application/orchestrator.py` | `services/api/tests/test_flagship_flow.py` |
 | Deterministic NovaPay scenario engine | `services/api/app/application/simulator.py` | flagship and tool tests |
-| Demo repository, snapshots, SSE queues, audit records | `services/api/app/application/store.py` | flagship and security-invariant tests |
+| Repository boundary, in-memory demo, snapshots, SSE queues | `services/api/app/application/store.py` | flagship and security-invariant tests |
 | Demo/OpenAI provider boundary | `services/api/app/agents/providers.py` | `services/api/tests/test_providers.py` |
 | Runtime configuration and cost limits | `services/api/app/config.py` | provider, permission, and timeout tests |
+| Deployment capabilities, public mutation gate, and local rate safeguard | `services/api/app/application/runtime_policy.py`, `services/api/app/application/rate_limit.py` | `services/api/tests/test_public_showcase.py` |
+| Deterministic read-only showcase seed | `services/api/app/application/showcase.py` | public-showcase API and seed tests |
 | Deterministic evaluation runner | `services/api/app/application/evaluation.py` | `services/api/tests/test_evaluation.py` |
 | Evaluation cases and generated result | `evals/cases/benchmark.jsonl`, `evals/results/latest.json` | `evals/run_local.py` |
 | FastAPI REST/SSE transport | `services/api/app/main.py` | browser tests and security-invariant route tests |
-| PostgreSQL schema contract | `services/api/app/infrastructure/database.py` | Alembic migration and Compose migration service |
+| PostgreSQL schema and production repository | `services/api/app/infrastructure/database.py`, `services/api/app/infrastructure/postgres_repository.py` | repository contract and guarded PostgreSQL integration tests |
 | Database migration history | `services/api/alembic/versions/` | CI/setup review; Docker required for PostgreSQL execution |
 | NovaPay MCP server | `packages/novapay-mcp/src/novapay_mcp/server.py` | `packages/novapay-mcp/tests/test_tools.py` |
 | Controlled buggy code fixture | `fixtures/novapay-services/webhook-worker/` | regression evidence in the flagship scenario |
@@ -37,7 +39,8 @@ This map points to ownership boundaries and primary tests, not every file.
 ```text
 Browser → FastAPI route → IncidentCoordinator → ToolGateway → PermissionEngine
                                              ↘ AIProvider (diagnosis only)
-ToolGateway → NovaPaySimulator → Evidence/Audit → InMemoryRepository → SSE → Browser
+ToolGateway → NovaPaySimulator → Evidence/Audit → Repository → PostgreSQL or in-memory demo
+Repository → in-process SSE subscriber → Browser
 ```
 
 The standalone MCP server models a compatible external operations surface, but the current coordinator invokes its application gateway and simulator directly. Do not describe MCP availability as application authorization.

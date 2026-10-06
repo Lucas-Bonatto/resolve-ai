@@ -11,6 +11,24 @@ permissions:
 jobs:
   python:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: resolveai
+          POSTGRES_PASSWORD: resolveai
+          POSTGRES_DB: resolveai_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U resolveai -d resolveai_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql+psycopg://resolveai:resolveai@localhost:5432/resolveai_test
+      TEST_DATABASE_URL: postgresql+psycopg://resolveai:resolveai@localhost:5432/resolveai_test
+      RESOLVEAI_CODE_REVISION: ${{ github.sha }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -19,9 +37,19 @@ jobs:
           cache: pip
       - run: python -m pip install --upgrade pip
       - run: python -m pip install -e "services/api[dev]" -e packages/novapay-mcp
+      - name: Apply PostgreSQL migrations
+        working-directory: services/api
+        run: python -m alembic upgrade head
       - run: python -m ruff check services/api packages/novapay-mcp evals scripts
       - run: python -m mypy services/api/app packages/novapay-mcp/src
-      - run: python -m pytest services/api/tests packages/novapay-mcp/tests
+      - name: Run Python tests and coverage gate
+        run: python -m pytest services/api/tests packages/novapay-mcp/tests --cov=app --cov=novapay_mcp --cov-branch --cov-config=.coveragerc --cov-report=term-missing --cov-report=json
+      - name: Run deterministic benchmark and active policy probes
+        run: python evals/run_local.py
+      - name: Scan tracked files for high-confidence secrets
+        run: python scripts/check_secrets.py
+      - name: Reject whitespace errors
+        run: git diff --check
 
   web:
     runs-on: ubuntu-latest
@@ -34,11 +62,58 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm run typecheck
-      - run: npm test
+      - run: npm run test:coverage
       - run: npm run build
+
+  public-showcase-container:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build public-showcase API image
+        run: docker build --file services/api/Dockerfile --tag resolveai-api:ci .
+      - name: Verify packaged public-showcase contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          container_name=resolveai-public-showcase-ci
+          expected_revision="$(python -c 'import json; print(json.load(open("evals/results/latest.json", encoding="utf-8"))["code_revision"])')"
+          export EXPECTED_REVISION="$expected_revision"
+          cleanup() {
+            docker logs "$container_name" 2>/dev/null || true
+            docker rm --force "$container_name" 2>/dev/null || true
+          }
+          trap cleanup EXIT
+
+          docker run --detach --name "$container_name" \
+            --publish 127.0.0.1:18000:8000 \
+            --env PORT=8000 \
+            --env DEPLOYMENT_PROFILE=public_showcase \
+            --env AI_PROVIDER=demo \
+            --env ENABLE_REAL_AI=false \
+            --env PERSISTENCE_BACKEND=memory \
+            --env CORS_ALLOWED_ORIGINS=https://showcase.example \
+            resolveai-api:ci
+
+          for attempt in {1..60}; do
+            if curl --fail --silent http://127.0.0.1:18000/health > /dev/null; then
+              break
+            fi
+            if [[ "$attempt" == "60" ]]; then
+              exit 1
+            fi
+            sleep 1
+          done
+
+          curl --fail --silent http://127.0.0.1:18000/api/incidents |
+            python -c 'import json, sys; data = json.load(sys.stdin); assert len(data) == 1 and data[0]["state"] == "AWAITING_APPROVAL"'
+          curl --fail --silent http://127.0.0.1:18000/api/evals/runs |
+            python -c 'import json, os, sys; data = json.load(sys.stdin); assert len(data) == 1 and data[0]["code_revision"] == os.environ["EXPECTED_REVISION"] and len(data[0]["results"]) == 40'
+          test "$(curl --silent --output /dev/null --write-out '%{http_code}' --request POST http://127.0.0.1:18000/api/demo/reset)" = "403"
 
   browser:
     runs-on: ubuntu-latest
+    env:
+      RESOLVEAI_CODE_REVISION: ${{ github.sha }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5

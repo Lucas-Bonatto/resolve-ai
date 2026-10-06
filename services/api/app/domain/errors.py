@@ -24,3 +24,15 @@ class ToolExecutionFailed(ResolveAIError):
 
 class EvaluationFailed(ResolveAIError):
     pass
+
+
+class EvidenceIntegrityError(ResolveAIError):
+    pass
+
+
+class PersistenceError(ResolveAIError):
+    pass
+
+
+class ReadOnlyRuntimeError(ResolveAIError):
+    pass

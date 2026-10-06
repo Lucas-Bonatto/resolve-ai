@@ -12,4 +12,4 @@ The OpenAI API key used for optional local-provider verification is stored only 
 - Architectural choices with meaningful alternatives have ADRs.
 - Security properties have negative tests.
 - Browser journeys exercise the real local API rather than mocked UI responses.
-- Known limitations and the visible evaluation regression are retained.
+- Known limitations and any evaluation regressions remain visible rather than being hidden by presentation code.

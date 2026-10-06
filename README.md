@@ -2,7 +2,7 @@
 
 **Auditable incident intelligence that reasons with evidence and keeps humans in control.**
 
-ResolveAI is a production-shaped engineering case study for autonomous incident response. It investigates a fictional NovaPay outage, collects typed evidence, maintains competing hypotheses, proposes a remediation, pauses at a policy boundary, and validates recovery after an operator approves the exact action.
+ResolveAI is a production-shaped engineering case study for bounded agentic incident response. It investigates a fictional NovaPay outage, collects typed evidence, maintains competing hypotheses, proposes a remediation, pauses at a policy boundary, and validates recovery after an operator approves the exact action.
 
 The application is intentionally honest about execution: the public experience uses deterministic simulated systems, while the same typed provider boundary can call the OpenAI Agents SDK when configured.
 
@@ -11,11 +11,11 @@ The application is intentionally honest about execution: the public experience u
 ## What you can verify
 
 - A full incident state machine from `NEW` to `RESOLVED`, including rejection and failure branches.
-- Every diagnosis cites evidence IDs owned by the incident.
+- Every supported diagnosis cites evidence IDs owned by the incident.
 - Read tools can run automatically; critical writes fail closed and require an expiring approval.
-- Approvals are bound to incident ID, tool-call ID, reviewer, expiration, and a canonical hash of the exact arguments.
+- Approvals are bound to incident, requested action, tool, tool call, expiry, reviewer, and a canonical hash of the exact arguments. Consumption is atomic in PostgreSQL.
 - A standalone typed MCP server exposes 14 bounded NovaPay operations.
-- Forty executable evaluation cases cover diagnosis quality, insufficient evidence, injection resistance, and approval bypass.
+- Forty deterministic evaluation cases cover scenario contracts; approval and injection cases actively probe the production tool gateway.
 - UI results distinguish `SIMULATED`, `EXECUTED`, and `NOT_EXECUTED` behavior.
 
 ## Architecture
@@ -33,6 +33,7 @@ flowchart LR
   E -->|critical write| H[Exact-action approval]
   H --> N
   A --> V[Evaluation runner]
+  A --> R[(PostgreSQL durable repository)]
   M[Standalone MCP server] --> F[Fictional NovaPay contract]
   N --> F
 ```
@@ -67,7 +68,17 @@ Open [http://localhost:3000](http://localhost:3000), launch the flagship inciden
 docker compose up --build
 ```
 
-The web app is available on port 3000 and the API/OpenAPI UI on ports 8000 and 8000/docs. PostgreSQL starts as the documented durable schema target; the interactive demo still uses its resettable in-memory repository by design.
+The web app is available on port 3000 and the API/OpenAPI UI on ports 8000 and 8000/docs. Compose applies the Alembic migrations and starts the API with the PostgreSQL repository. The non-Docker quick start keeps `PERSISTENCE_BACKEND=memory` for a resettable, no-dependency demo.
+
+To run the API against an existing PostgreSQL instance without Compose, set `PERSISTENCE_BACKEND=postgres` and `DATABASE_URL`, apply `alembic upgrade head` from `services/api`, and then start the API. Do not use the placeholder Compose password outside local development.
+
+### Read-only public showcase
+
+For a hosted portfolio, set `DEPLOYMENT_PROFILE=public_showcase`, keep the deterministic demo provider, use `PERSISTENCE_BACKEND=memory`, and configure `CORS_ALLOWED_ORIGINS` with the exact HTTPS web origin. This profile preloads the fictional flagship investigation and committed evaluation result, then rejects every mutation endpoint in the backend. The UI identifies the environment as read-only and disables approval and evaluation controls.
+
+This profile deliberately does not make the interactive demo multi-user safe. Authentication and tenant/session isolation are required before enabling public approvals, reset, Chaos injection, or evaluation execution. See the [deployment guide](docs/deployment.md) for the complete configuration and limits.
+
+The repository also includes `render.yaml`, a two-service, single-instance Blueprint for this read-only profile. It wires the platform-assigned HTTPS origins without credentials, packages the evaluation result with its recorded execution revision, and waits for repository checks before redeploying. Creating the Blueprint is an explicit external action; review Render's current free-plan limits and billing settings first.
 
 ## Optional OpenAI provider
 
@@ -82,11 +93,21 @@ OPENAI_MODEL=gpt-6-luna
 
 The provider returns the same Pydantic `Diagnosis` contract as demo mode. Tool authorization, evidence ownership, timeouts, and approval enforcement remain server-side. See [agent behavior](docs/agents.md).
 
+An explicitly authorized live smoke test is available and is never part of baseline CI:
+
+```powershell
+$env:RUN_OPENAI_LIVE_SMOKE="1"
+$env:AI_PROVIDER="openai"
+$env:ENABLE_REAL_AI="true"
+.\.venv\Scripts\python.exe -m pytest services/api/tests/test_openai_live.py -m live
+```
+
 ## Verification
 
 ```powershell
 # Python
 .\.venv\Scripts\python.exe -m pytest services/api/tests packages/novapay-mcp/tests
+.\.venv\Scripts\python.exe -m pytest services/api/tests packages/novapay-mcp/tests --cov=app --cov=novapay_mcp --cov-branch --cov-config=.coveragerc --cov-report=term-missing --cov-report=json
 .\.venv\Scripts\python.exe -m ruff check services/api packages/novapay-mcp evals
 .\.venv\Scripts\python.exe -m mypy services/api/app packages/novapay-mcp/src
 
@@ -94,13 +115,16 @@ The provider returns the same Pydantic `Diagnosis` contract as demo mode. Tool a
 npm run lint
 npm run typecheck
 npm test
+npm run test:coverage
 npm run build
 
 # With both local servers running
 npm run test:e2e
 ```
 
-Run the benchmark directly with `python evals/run_local.py`, or execute it from the Evaluation Center. The deliberately retained false-correlation case makes regressions visible instead of manufacturing a perfect score.
+Coverage is an enforced CI gate, not a marketing metric. The initial measured floors are 85% combined Python coverage and, for the web unit suite, 60% statements, 55% branches, 50% functions, and 65% lines. All executable source files are included even when a test does not import them; generated/type-only frontend declarations are excluded. Raise these floors as behavioral coverage grows, and never lower or exclude production code merely to pass CI.
+
+Run the benchmark directly with `.\.venv\Scripts\python.exe evals/run_local.py`, or execute it from the Evaluation Center. Set `$env:RESOLVEAI_CODE_REVISION=(git describe --always --dirty)` before starting the API or runner to bind new results to the checked-out revision and disclose local changes; CI injects the full GitHub commit SHA automatically. If no revision is supplied, the UI says `Not configured` rather than implying reproducibility. The current generated 40/40 result is deterministic scenario-contract coverage, not OpenAI model accuracy. Security cases actively attempt an unapproved registered critical action against `ToolGateway`; they do not represent a red-team assessment of an OpenAI model. Case `eval_false_correlation_020` verifies that an unrelated recent deployment is not treated as causal when provider-outage evidence is present.
 
 ## Repository map
 
@@ -115,7 +139,7 @@ docs/                     Architecture, security, demo, ADRs, and launch notes
 
 ## Project posture
 
-This repository demonstrates secure orchestration patterns; it is not a claim that an autonomous system should receive unrestricted production access. The default store is intentionally ephemeral, authentication is not implemented for the local portfolio demo, and live GitHub writes are disabled. Read [project status](PROJECT_STATUS.md) before adapting it for a hosted or multi-user environment.
+This repository demonstrates secure orchestration patterns; it is not a claim that an autonomous system should receive unrestricted production access. The default no-dependency store is intentionally ephemeral, PostgreSQL is opt-in (and used by Compose), and live GitHub writes are disabled. Authentication is not implemented for the local portfolio demo, so approval actors are self-asserted demo identities rather than authenticated enterprise principals. The only unauthenticated public profile is read-only; it does not accept approvals. Read [project status](PROJECT_STATUS.md) before adapting it for a hosted or multi-user environment.
 
 ## Contributing and security
 

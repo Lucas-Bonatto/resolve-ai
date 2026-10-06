@@ -21,8 +21,9 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
   "httpx>=0.28,<1",
-  "pytest>=8.4,<9",
+  "pytest>=9.0.3,<10",
   "pytest-asyncio>=1.1,<2",
+  "pytest-cov>=7.1,<8",
   "ruff>=0.12,<1",
   "mypy>=1.17,<2",
 ]
@@ -33,6 +34,10 @@ packages = ["app"]
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+markers = [
+  "live: explicitly authorized test that may call a paid external provider",
+  "postgres: integration test that requires a disposable PostgreSQL database",
+]
 
 [tool.ruff]
 line-length = 100

@@ -35,9 +35,10 @@ class NovaPaySimulator:
         },
     ]
 
-    def __init__(self) -> None:
+    def __init__(self, *, validation_should_fail: bool = False) -> None:
         self.deployment_active = "dep_184"
         self.flagship_injected = False
+        self.validation_should_fail = validation_should_fail
 
     def reset(self) -> None:
         self.deployment_active = "dep_184"
@@ -110,6 +111,12 @@ class NovaPaySimulator:
                 "rolled_back": True,
             }
         if tool_name == "validate_remediation":
+            if self.validation_should_fail:
+                return {
+                    "tests_passed": 10,
+                    "tests_failed": 2,
+                    "pending_transactions_recovered": 21,
+                }
             return {"tests_passed": 12, "tests_failed": 0, "pending_transactions_recovered": 37}
         if tool_name == "create_incident_note":
             return {"created": True, "note_id": "note_demo_01"}
