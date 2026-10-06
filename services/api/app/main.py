@@ -4,6 +4,7 @@ import asyncio
 import re
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from dataclasses import asdict
 from time import perf_counter
 from typing import Any
 
@@ -14,14 +15,26 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from app.application.evaluation import EvaluationRunner
 from app.application.orchestrator import coordinator
+from app.application.rate_limit import SlidingWindowRateLimiter
+from app.application.runtime_policy import runtime_policy
+from app.application.showcase import prepare_public_showcase
 from app.application.simulator import simulator
 from app.application.store import repository
 from app.config import settings
-from app.domain.errors import ApprovalInvalid, IncidentNotFound, ResolveAIError
+from app.domain.errors import (
+    ApprovalInvalid,
+    IncidentNotFound,
+    ReadOnlyRuntimeError,
+    ResolveAIError,
+)
 from app.domain.models import new_id
 from app.observability import log_event, reset_correlation_id, set_correlation_id
 
 CORRELATION_ID_PATTERN = re.compile(r"^[A-Za-z0-9_-]{8,64}$")
+public_showcase_limiter = SlidingWindowRateLimiter(
+    request_limit=settings.public_rate_limit_requests,
+    window_seconds=settings.public_rate_limit_window_seconds,
+)
 
 
 class DecisionRequest(BaseModel):
@@ -36,6 +49,9 @@ class DecisionRequest(BaseModel):
 
 @asynccontextmanager
 async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+    await public_showcase_limiter.reset()
+    if runtime_policy.is_public_showcase:
+        await prepare_public_showcase(repository, simulator, coordinator)
     yield
 
 
@@ -47,7 +63,7 @@ app = FastAPI(
 )
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
+    allow_origins=settings.allowed_cors_origins,
     allow_credentials=False,
     allow_methods=["GET", "POST"],
     allow_headers=["content-type", "x-correlation-id"],
@@ -65,8 +81,51 @@ async def correlation_context(request: Request, call_next: Any) -> Any:
     token = set_correlation_id(correlation_id)
     started = perf_counter()
     try:
-        response = await call_next(request)
+        retry_after = None
+        if runtime_policy.is_public_showcase and request.method not in {
+            "GET",
+            "HEAD",
+            "OPTIONS",
+        }:
+            try:
+                runtime_policy.require_mutations()
+            except ReadOnlyRuntimeError as exc:
+                response = JSONResponse(
+                    status_code=403,
+                    content={
+                        "error": type(exc).__name__,
+                        "message": str(exc),
+                        "recoverable": True,
+                        "correlation_id": correlation_id,
+                    },
+                )
+        elif (
+            runtime_policy.is_public_showcase
+            and request.method != "OPTIONS"
+            and request.url.path != "/health"
+        ):
+            client_id = request.client.host if request.client else "unknown"
+            retry_after = await public_showcase_limiter.retry_after(client_id)
+            if retry_after is not None:
+                response = JSONResponse(
+                    status_code=429,
+                    content={
+                        "error": "RateLimitExceeded",
+                        "message": "Limite temporário de solicitações da vitrine excedido.",
+                        "recoverable": True,
+                        "correlation_id": correlation_id,
+                    },
+                    headers={"Retry-After": str(retry_after)},
+                )
+            else:
+                response = await call_next(request)
+        else:
+            response = await call_next(request)
         response.headers["x-correlation-id"] = correlation_id
+        response.headers.setdefault("cache-control", "no-store")
+        response.headers["x-content-type-options"] = "nosniff"
+        response.headers["referrer-policy"] = "no-referrer"
+        response.headers["permissions-policy"] = "camera=(), microphone=(), geolocation=()"
         log_event(
             "http.request.completed",
             method=request.method,
@@ -90,7 +149,12 @@ async def correlation_context(request: Request, call_next: Any) -> Any:
 
 @app.exception_handler(ResolveAIError)
 async def domain_error(request: Request, exc: ResolveAIError) -> Any:
-    status = 404 if isinstance(exc, IncidentNotFound) else 409
+    if isinstance(exc, IncidentNotFound):
+        status = 404
+    elif isinstance(exc, ReadOnlyRuntimeError):
+        status = 403
+    else:
+        status = 409
     return JSONResponse(
         status_code=status,
         content={
@@ -107,8 +171,14 @@ async def health() -> dict[str, str]:
     return {
         "status": "healthy",
         "mode": "fictional-demo",
+        "deployment_profile": settings.deployment_profile,
         "persistence": settings.persistence_backend,
     }
+
+
+@app.get("/api/runtime")
+async def runtime_capabilities() -> dict[str, str | bool]:
+    return asdict(runtime_policy.capabilities())
 
 
 @app.get("/api/chaos/scenarios")
@@ -118,6 +188,7 @@ async def list_scenarios() -> list[dict[str, Any]]:
 
 @app.post("/api/chaos/scenarios/{scenario_id}/inject", status_code=202)
 async def inject_scenario(scenario_id: str, request: Request) -> dict[str, Any]:
+    runtime_policy.require_mutations()
     if scenario_id != "payment-webhook-regression":
         raise HTTPException(
             status_code=422, detail="Select the polished flagship scenario in this build"
@@ -189,6 +260,7 @@ async def list_approvals() -> list[Any]:
 
 @app.post("/api/approvals/{approval_id}/approve")
 async def approve(approval_id: str, request: DecisionRequest) -> Any:
+    runtime_policy.require_mutations()
     incident = repository.incident_for_approval(approval_id)
     if incident is None:
         raise ApprovalInvalid("Approval not found")
@@ -197,6 +269,7 @@ async def approve(approval_id: str, request: DecisionRequest) -> Any:
 
 @app.post("/api/approvals/{approval_id}/reject")
 async def reject(approval_id: str, request: DecisionRequest) -> Any:
+    runtime_policy.require_mutations()
     incident = repository.incident_for_approval(approval_id)
     if incident is None:
         raise ApprovalInvalid("Approval not found")
@@ -224,6 +297,7 @@ async def get_run(run_id: str) -> Any:
 
 @app.post("/api/evals/run")
 async def run_evaluations() -> Any:
+    runtime_policy.require_mutations()
     return EvaluationRunner(repository).run()
 
 
@@ -234,6 +308,7 @@ async def evaluation_runs() -> list[Any]:
 
 @app.post("/api/demo/reset")
 async def reset_demo() -> dict[str, str]:
+    runtime_policy.require_mutations()
     await repository.reset()
     simulator.reset()
     return {"status": "reset", "execution": "SIMULATED"}

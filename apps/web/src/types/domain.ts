@@ -6,6 +6,14 @@ export type IncidentState =
 export type RiskLevel = "read" | "safe_write" | "critical_write";
 export type ExecutionStatus = "EXECUTED" | "SIMULATED" | "NOT_EXECUTED" | "BLOCKED";
 
+export interface RuntimeCapabilities {
+  deployment_profile: "local" | "public_showcase";
+  interactive: boolean;
+  mutations_allowed: boolean;
+  real_ai_enabled: boolean;
+  fictional_data: boolean;
+}
+
 export interface Incident {
   id: string;
   title: string;

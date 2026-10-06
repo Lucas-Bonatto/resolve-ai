@@ -72,6 +72,12 @@ The web app is available on port 3000 and the API/OpenAPI UI on ports 8000 and 8
 
 To run the API against an existing PostgreSQL instance without Compose, set `PERSISTENCE_BACKEND=postgres` and `DATABASE_URL`, apply `alembic upgrade head` from `services/api`, and then start the API. Do not use the placeholder Compose password outside local development.
 
+### Read-only public showcase
+
+For a hosted portfolio, set `DEPLOYMENT_PROFILE=public_showcase`, keep the deterministic demo provider, use `PERSISTENCE_BACKEND=memory`, and configure `CORS_ALLOWED_ORIGINS` with the exact HTTPS web origin. This profile preloads the fictional flagship investigation and committed evaluation result, then rejects every mutation endpoint in the backend. The UI identifies the environment as read-only and disables approval and evaluation controls.
+
+This profile deliberately does not make the interactive demo multi-user safe. Authentication and tenant/session isolation are required before enabling public approvals, reset, Chaos injection, or evaluation execution. See the [deployment guide](docs/deployment.md) for the complete configuration and limits.
+
 ## Optional OpenAI provider
 
 Keep secrets in `.env.local` (ignored by Git), then set:
@@ -127,7 +133,7 @@ docs/                     Architecture, security, demo, ADRs, and launch notes
 
 ## Project posture
 
-This repository demonstrates secure orchestration patterns; it is not a claim that an autonomous system should receive unrestricted production access. The default no-dependency store is intentionally ephemeral, PostgreSQL is opt-in (and used by Compose), and live GitHub writes are disabled. Authentication is not implemented for the local portfolio demo, so approval actors are self-asserted demo identities rather than authenticated enterprise principals. Read [project status](PROJECT_STATUS.md) before adapting it for a hosted or multi-user environment.
+This repository demonstrates secure orchestration patterns; it is not a claim that an autonomous system should receive unrestricted production access. The default no-dependency store is intentionally ephemeral, PostgreSQL is opt-in (and used by Compose), and live GitHub writes are disabled. Authentication is not implemented for the local portfolio demo, so approval actors are self-asserted demo identities rather than authenticated enterprise principals. The only unauthenticated public profile is read-only; it does not accept approvals. Read [project status](PROJECT_STATUS.md) before adapting it for a hosted or multi-user environment.
 
 ## Contributing and security
 

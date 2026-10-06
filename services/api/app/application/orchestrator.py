@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import asyncio
-from typing import Any
+from typing import Any, Literal
 
 from app.agents.providers import AIProvider, configured_provider
 from app.application.simulator import NovaPaySimulator, simulator
@@ -52,7 +52,12 @@ class IncidentCoordinator:
         self._tasks: dict[str, asyncio.Task[None]] = {}
         self.delay = min(max(settings.demo_event_delay_ms, 0), 2000) / 1000
 
-    async def inject_flagship(self, correlation_id: str | None = None) -> Incident:
+    async def inject_flagship(
+        self,
+        correlation_id: str | None = None,
+        actor_id: str = "demo-operator",
+        actor_type: Literal["USER", "SYSTEM"] = "USER",
+    ) -> Incident:
         existing = self.repository.incidents.get(FLAGSHIP_ID)
         active = self._tasks.get(FLAGSHIP_ID)
         if existing and active and not active.done():
@@ -82,8 +87,8 @@ class IncidentCoordinator:
         )
         self._audit(
             incident.id,
-            actor_type="USER",
-            actor_id="demo-operator",
+            actor_type=actor_type,
+            actor_id=actor_id,
             action="chaos.inject",
             resource_type="incident",
             resource_id=incident.id,
@@ -92,6 +97,11 @@ class IncidentCoordinator:
         )
         self._tasks[incident.id] = asyncio.create_task(self._investigate_bounded(incident.id))
         return incident
+
+    async def wait_for_investigation(self, incident_id: str) -> None:
+        task = self._tasks.get(incident_id)
+        if task is not None:
+            await task
 
     async def _investigate_bounded(self, incident_id: str) -> None:
         try:

@@ -14,6 +14,8 @@ This map points to ownership boundaries and primary tests, not every file.
 | Repository boundary, in-memory demo, snapshots, SSE queues | `services/api/app/application/store.py` | flagship and security-invariant tests |
 | Demo/OpenAI provider boundary | `services/api/app/agents/providers.py` | `services/api/tests/test_providers.py` |
 | Runtime configuration and cost limits | `services/api/app/config.py` | provider, permission, and timeout tests |
+| Deployment capabilities, public mutation gate, and local rate safeguard | `services/api/app/application/runtime_policy.py`, `services/api/app/application/rate_limit.py` | `services/api/tests/test_public_showcase.py` |
+| Deterministic read-only showcase seed | `services/api/app/application/showcase.py` | public-showcase API and seed tests |
 | Deterministic evaluation runner | `services/api/app/application/evaluation.py` | `services/api/tests/test_evaluation.py` |
 | Evaluation cases and generated result | `evals/cases/benchmark.jsonl`, `evals/results/latest.json` | `evals/run_local.py` |
 | FastAPI REST/SSE transport | `services/api/app/main.py` | browser tests and security-invariant route tests |

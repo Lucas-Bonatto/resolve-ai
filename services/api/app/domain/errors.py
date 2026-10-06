@@ -32,3 +32,7 @@ class EvidenceIntegrityError(ResolveAIError):
 
 class PersistenceError(ResolveAIError):
     pass
+
+
+class ReadOnlyRuntimeError(ResolveAIError):
+    pass

@@ -70,7 +70,7 @@ Workflow events are published to incident-owned queues and delivered through cur
 
 The 40-case deterministic suite covers multiple incident families, five prompt-injection cases, five insufficient-evidence cases, tool selection, evidence recall, approval bypass, and unauthorized critical execution. Approval-required and injection cases actively call the real application gateway without approval; they do not infer a security result from fixture metadata. Prompt, model, provider, tool, orchestration, or evidence-contract changes require an evaluation run and comparison with `evals/results/latest.json`.
 
-One false-correlation regression is deliberately visible. It is evidence to investigate, not a result to hide.
+The generated deterministic result currently records 40/40 scenario contracts. Future failures must remain visible rather than being filtered from the product or generated artifact.
 
 ## Extension criteria
 

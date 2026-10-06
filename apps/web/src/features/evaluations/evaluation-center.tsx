@@ -5,7 +5,7 @@ import { EvalIcon } from "@/components/icons";
 import { MetricCard, StatusBadge } from "@/components/ui";
 import { api } from "@/lib/api";
 import { translateDemoText } from "@/lib/locale";
-import type { EvaluationRun } from "@/types/domain";
+import type { EvaluationRun, RuntimeCapabilities } from "@/types/domain";
 
 const sample: EvaluationRun = {
   id: "not-executed", provider: "demo", model: "deterministic-demo-v1", sample_data: true,
@@ -34,14 +34,24 @@ export function EvaluationCenter() {
   const [runs, setRuns] = useState<EvaluationRun[]>([]);
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [runtime, setRuntime] = useState<RuntimeCapabilities | null>(null);
+  const [runtimeChecked, setRuntimeChecked] = useState(false);
 
   useEffect(() => {
-    api.evaluationRuns().then(setRuns).catch(() => undefined);
+    Promise.allSettled([api.evaluationRuns(), api.runtime()]).then(([runsResult, runtimeResult]) => {
+      if (runsResult.status === "fulfilled") setRuns(runsResult.value);
+      if (runtimeResult.status === "fulfilled") setRuntime(runtimeResult.value);
+      setRuntimeChecked(true);
+    });
   }, []);
 
   const run = runs[0] ?? sample;
   const previous = runs[1] ?? null;
+  const mutationsAllowed = runtime?.mutations_allowed === true;
+  const runtimePending = !runtimeChecked;
+  const publicShowcase = runtime?.deployment_profile === "public_showcase";
   const execute = async () => {
+    if (!mutationsAllowed) return;
     setRunning(true); setError(null);
     try {
       const next = await api.runEvals();
@@ -75,10 +85,11 @@ export function EvaluationCenter() {
         <StatusBadge tone={resultTone}>{run.sample_data ? "Dados de exemplo" : "Resultado executado"}</StatusBadge>
         <p>{run.provider} · {run.model} · {run.metrics.case_count ?? total} casos</p>
       </div>
-      <button className="button button-primary" disabled={running} onClick={execute}>
-        <EvalIcon />{running ? "Executando 40 casos…" : "Executar avaliação"}
+      <button className="button button-primary" disabled={running || !mutationsAllowed} onClick={execute}>
+        <EvalIcon />{running ? "Executando 40 casos…" : runtimePending ? "Verificando ambiente…" : mutationsAllowed ? "Executar avaliação" : publicShowcase ? "Execução desabilitada" : "Ambiente indisponível"}
       </button>
     </div>
+    {!runtimePending && !mutationsAllowed && <div className="runtime-notice runtime-notice-page" role="note"><strong>{publicShowcase ? "Resultado versionado, modo somente leitura." : "Capacidades do ambiente indisponíveis."}</strong>{publicShowcase ? "A vitrine exibe o último artefato executado presente no repositório; novas avaliações permanecem disponíveis apenas no ambiente local." : "A execução foi bloqueada por segurança porque a API não informou as capacidades deste ambiente."}</div>}
     <p className="sr-only" role="status" aria-live="polite" aria-atomic="true">{liveMessage}</p>
     {error && <div className="error-banner" role="alert">{error}. Inicie a API com <code>make dev-api</code>.</div>}
     <section className={`evaluation-summary ${run.sample_data ? "evaluation-summary-empty" : failures.length ? "evaluation-summary-warning" : "evaluation-summary-success"}`} aria-labelledby="evaluation-result-title">

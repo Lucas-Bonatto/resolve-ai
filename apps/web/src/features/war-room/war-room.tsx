@@ -12,6 +12,7 @@ import type {
   Evidence,
   IncidentReport,
   IncidentSnapshot,
+  RuntimeCapabilities,
   ValidationResult,
 } from "@/types/domain";
 
@@ -34,10 +35,14 @@ function confidenceLabel(value: number): "Baixa" | "Média" | "Alta" {
 function PendingDecision({
   approval,
   busy,
+  mutationsAllowed,
+  publicShowcase,
   onDecide,
 }: {
   approval: Approval;
   busy: boolean;
+  mutationsAllowed: boolean;
+  publicShowcase: boolean;
   onDecide: (decision: "approve" | "reject") => void;
 }) {
   return (
@@ -51,17 +56,18 @@ function PendingDecision({
           <span className="priority-eyebrow">Ponto de decisão humana</span>
           <h4>{translateDemoText(approval.requested_action)}</h4>
           <p>{translateDemoText(approval.reason)}</p>
+          {!mutationsAllowed && <div className="runtime-notice" role="note"><strong>{publicShowcase ? "Vitrine pública somente leitura." : "Capacidades do ambiente indisponíveis."}</strong>{publicShowcase ? "Esta solicitação foi capturada no ponto de aprovação para inspeção; nenhuma decisão pode ser enviada por este ambiente." : "A decisão foi bloqueada por segurança porque a API não informou as capacidades deste ambiente."}</div>}
           <div className="approval-buttons">
             <button
               className="button button-danger"
-              disabled={busy}
+              disabled={busy || !mutationsAllowed}
               onClick={() => onDecide("reject")}
             >
               Rejeitar reversão
             </button>
             <button
               className="button button-success"
-              disabled={busy}
+              disabled={busy || !mutationsAllowed}
               onClick={() => onDecide("approve")}
             >
               <CheckIcon /> Aprovar reversão exata
@@ -136,6 +142,8 @@ function ResolutionOutcome({
 
 export function WarRoom({ incidentId }: { incidentId: string }) {
   const [snapshot, setSnapshot] = useState<IncidentSnapshot | null>(null);
+  const [runtime, setRuntime] = useState<RuntimeCapabilities | null>(null);
+  const [runtimeChecked, setRuntimeChecked] = useState(false);
   const [selected, setSelected] = useState<Evidence | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -157,29 +165,38 @@ export function WarRoom({ incidentId }: { incidentId: string }) {
 
   useEffect(() => {
     let active = true;
-    api.incident(incidentId)
-      .then(next => { if (active) { setSnapshot(next); setError(null); } })
-      .catch(() => undefined)
-      .finally(() => { if (active) setLoading(false); });
+    Promise.allSettled([api.incident(incidentId), api.runtime()])
+      .then(([incidentResult, runtimeResult]) => {
+        if (!active) return;
+        if (incidentResult.status === "fulfilled") {
+          setSnapshot(incidentResult.value);
+          setError(null);
+        }
+        if (runtimeResult.status === "fulfilled") setRuntime(runtimeResult.value);
+      })
+      .finally(() => { if (active) { setRuntimeChecked(true); setLoading(false); } });
     return () => { active = false; };
   }, [incidentId]);
 
   const incidentState = snapshot?.incident.state;
   const lastEventId = snapshot?.events.at(-1)?.id;
+  const mutationsAllowed = runtime?.mutations_allowed === true;
+  const publicShowcase = runtime?.deployment_profile === "public_showcase";
   useEffect(() => {
     if (selected) evidenceHeadingRef.current?.focus();
   }, [selected]);
 
   useEffect(() => {
-    if (!incidentState || terminalStates.has(incidentState)) return;
+    if (!incidentState || terminalStates.has(incidentState) || !mutationsAllowed) return;
     const cursor = lastEventId ? `?after_id=${encodeURIComponent(lastEventId)}` : "";
     const events = new EventSource(`${API_URL}/api/incidents/${incidentId}/events/stream${cursor}`);
     events.addEventListener("incident", () => { void refresh(); });
     events.onerror = () => setError("O fluxo ao vivo foi interrompido. O ResolveAI tentará reconectar automaticamente.");
     return () => events.close();
-  }, [incidentId, incidentState, lastEventId, refresh]);
+  }, [incidentId, incidentState, lastEventId, mutationsAllowed, refresh]);
 
   const launch = async () => {
+    if (!mutationsAllowed) return;
     setBusy(true); setError(null);
     try { await api.injectFlagship(); await refresh(); }
     catch (requestError) { setError(requestError instanceof Error ? requestError.message : "Não foi possível iniciar a demonstração"); }
@@ -187,7 +204,7 @@ export function WarRoom({ incidentId }: { incidentId: string }) {
   };
 
   const decide = async (decision: "approve" | "reject") => {
-    if (!snapshot?.approval) return;
+    if (!snapshot?.approval || !mutationsAllowed) return;
     setBusy(true); setError(null);
     try { await api.decide(snapshot.approval.id, decision); await refresh(); }
     catch (requestError) { setError(requestError instanceof Error ? requestError.message : "Não foi possível registrar a decisão"); }
@@ -203,14 +220,15 @@ export function WarRoom({ incidentId }: { incidentId: string }) {
   };
 
   if (loading) return <div className="launch-state"><div><div className="launch-orbit skeleton" /><div className="skeleton" style={{ height: 30, width: 270, margin: "0 auto 10px" }} /><div className="skeleton" style={{ height: 15, width: 390, maxWidth: "90%", margin: "0 auto" }} /></div></div>;
-  if (!snapshot) return <div className="launch-state"><div><div className="launch-orbit"><IncidentIcon /></div><StatusBadge tone="critical">Cenário principal · SEV-1</StatusBadge><h2>Regressão no webhook de pagamentos</h2><p>Injete um incidente controlado e acompanhe o ResolveAI coletar evidências, testar hipóteses, pausar em uma reversão crítica e validar o resultado.</p><button className="button button-primary" disabled={busy} onClick={launch}><SparkIcon /> {busy ? "Injetando…" : "Injetar incidente"}</button>{error && <div className="error-banner" role="alert">{error}<br />Inicie a API com <code>make dev-api</code>.</div>}</div></div>;
+  if (!snapshot) return <div className="launch-state"><div><div className="launch-orbit"><IncidentIcon /></div><StatusBadge tone="critical">Cenário principal · SEV-1</StatusBadge><h2>Regressão no webhook de pagamentos</h2><p>{mutationsAllowed ? "Injete um incidente controlado e acompanhe o ResolveAI coletar evidências, testar hipóteses, pausar em uma reversão crítica e validar o resultado." : publicShowcase ? "A vitrine pública é somente leitura e deveria carregar um cenário determinístico para inspeção." : "Não foi possível verificar as capacidades deste ambiente; a injeção foi bloqueada por segurança."}</p>{mutationsAllowed && <button className="button button-primary" disabled={busy} onClick={launch}><SparkIcon /> {busy ? "Injetando…" : "Injetar incidente"}</button>}{error && <div className="error-banner" role="alert">{error}<br />Inicie a API com <code>make dev-api</code>.</div>}</div></div>;
 
   return <>
     <section className="war-header"><div><p className="breadcrumb">{snapshot.incident.id} / Sala de crise</p><h2>{translateDemoText(snapshot.incident.title)}</h2><p>{translateDemoText(snapshot.incident.description)}</p></div><div className="war-meta"><StatusBadge tone="critical">{snapshot.incident.severity}</StatusBadge><StatusBadge tone={tone(snapshot.incident.state)}>{incidentStateLabel(snapshot.incident.state)}</StatusBadge><StatusBadge tone="neutral">{executionStatusLabel(snapshot.incident.execution_status)}</StatusBadge></div></section>
+    {runtimeChecked && !mutationsAllowed && <div className="runtime-notice runtime-notice-page" role="note"><strong>{publicShowcase ? "Modo de vitrine pública." : "Capacidades do ambiente indisponíveis."}</strong>{publicShowcase ? "Este snapshot fictício é reiniciado no servidor e todas as rotas de mutação são bloqueadas no backend." : "Ações mutáveis foram bloqueadas por segurança até que a API informe as capacidades do ambiente."}</div>}
     <p className="sr-only" role="status" aria-live="polite" aria-atomic="true">Estado do incidente: {incidentStateLabel(snapshot.incident.state).toLowerCase()}.</p>
     {error && <div className="error-banner" role="alert">{error}</div>}
     {snapshot.approval?.status === "PENDING" && (
-      <PendingDecision approval={snapshot.approval} busy={busy} onDecide={decide} />
+      <PendingDecision approval={snapshot.approval} busy={busy} mutationsAllowed={mutationsAllowed} publicShowcase={publicShowcase} onDecide={decide} />
     )}
     {snapshot.validation && (
       <ResolutionOutcome validation={snapshot.validation} report={snapshot.report} />

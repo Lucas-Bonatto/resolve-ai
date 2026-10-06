@@ -2,7 +2,9 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { api } from "@/lib/api";
+import type { RuntimeCapabilities } from "@/types/domain";
 import { AuditIcon, EvalIcon, IncidentIcon, LockIcon, MarkIcon, PulseIcon } from "./icons";
 
 const navigation = [
@@ -20,6 +22,25 @@ function isActive(pathname: string, href: string): boolean {
 export function AppNavigation() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  const [runtime, setRuntime] = useState<RuntimeCapabilities | null>(null);
+  const [runtimeChecked, setRuntimeChecked] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    api.runtime()
+      .then(value => { if (active) setRuntime(value); })
+      .catch(() => undefined)
+      .finally(() => { if (active) setRuntimeChecked(true); });
+    return () => { active = false; };
+  }, []);
+
+  const publicShowcase = runtime?.deployment_profile === "public_showcase";
+  const environmentLabel = runtime
+    ? publicShowcase ? "Vitrine pública" : "Ambiente de demonstração"
+    : runtimeChecked ? "Ambiente indisponível" : "Verificando ambiente";
+  const environmentDetail = runtime
+    ? publicShowcase ? "Somente leitura" : "Simulado · SIMULATED"
+    : runtimeChecked ? "Controles bloqueados" : "Aguarde";
 
   return <aside className={`sidebar${open ? " sidebar-open" : ""}`}>
     <div className="sidebar-top">
@@ -29,7 +50,7 @@ export function AppNavigation() {
         <span>{open ? "Fechar" : "Menu"}</span>
       </button>
     </div>
-    <div className="environment"><span className="live-dot" /> Ambiente de demonstração <b>Simulado · SIMULATED</b></div>
+    <div className={`environment${publicShowcase ? " environment-public" : ""}`}><span className="live-dot" /> {environmentLabel} <b>{environmentDetail}</b></div>
     <nav id="primary-navigation" aria-label="Navegação principal">
       {navigation.map(({ href, label, icon: Icon }) => {
         const active = isActive(pathname, href);

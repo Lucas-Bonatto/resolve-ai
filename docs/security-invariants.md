@@ -82,6 +82,14 @@ These are hard properties, not prompt suggestions. A change that violates one mu
 
 **Verification.** `test_audit_api_is_read_only`, `test_agents_have_no_audit_mutation_tool`, and `test_malicious_tool_parameters_are_rejected`.
 
+## Invariant 11 — The public showcase cannot mutate application state
+
+**Reason.** An unauthenticated hosted portfolio must not let visitors approve actions, reset shared state, execute evaluations, or interfere with another visitor's view.
+
+**Enforcement.** `DEPLOYMENT_PROFILE=public_showcase` is a server-owned, fail-closed profile that requires the deterministic demo provider, disables real AI, uses the isolated in-memory snapshot, applies an explicit non-local CORS allowlist, and rejects every mutation route with `403`. Startup seeds the flagship investigation only as far as `AWAITING_APPROVAL`; it never fabricates human approval or executes the critical action. The frontend capability display is explanatory and is not the security boundary.
+
+**Verification.** `test_public_showcase_configuration_is_fail_closed`, `test_public_showcase_seed_is_deterministic_and_pauses_before_execution`, and `test_public_showcase_blocks_every_mutation_at_the_backend` cover configuration downgrade attempts, safe initialization, all exposed POST routes, and unchanged incident state.
+
 ## Review rule
 
 For tool, agent, MCP, authentication, or integration changes, explicitly ask: can untrusted text influence this, can parameters change after approval, can a decision replay or cross incidents, can it reveal secrets or access arbitrary resources, and can it create an unbounded loop? If any answer is yes, stop and fix the design.
