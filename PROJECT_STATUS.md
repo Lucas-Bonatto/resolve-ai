@@ -23,10 +23,11 @@
 - Brazilian Portuguese product localization: public landing page, command center, incident surfaces, War Room, evaluations, security, audit, errors, accessible labels, and browser tests; canonical technical identifiers and execution labels remain visible for auditability
 - Evaluation false-correlation remediation: provider-outage evidence now outranks an unrelated recent deployment in `eval_false_correlation_020`, with deterministic tool-selection coverage and a regenerated 40/40 contract result
 - Public showcase release-candidate boundary: fail-closed deployment configuration, explicit CORS allowlist, deterministic startup snapshot, versioned evaluation result, backend-wide mutation denial, bounded local request limiting, security headers, and visibly disabled UI controls
+- Public showcase deployment readiness: Render Blueprint with exact cross-service HTTPS origins, single-instance boundaries, executed-benchmark revision provenance, packaged evaluation artifact, platform-port support, and a CI container contract smoke test
 
 ## Next
 
-- Deploy the read-only public showcase and capture desktop/narrow-layout release media
+- Publish the release commit to a Git remote, deploy the read-only Render Blueprint, and capture desktop/narrow-layout release media
 - Calibrate real-provider confidence on a larger private evaluation set
 - Add authentication and tenant-aware authorization before any public multi-user deployment
 - Add durable cross-process event delivery before horizontally scaling SSE workers
@@ -35,6 +36,7 @@
 
 - The no-dependency default remains a deterministic single-process in-memory demo. Compose selects PostgreSQL; horizontal workers still need a durable event bus for cross-process SSE delivery.
 - The unauthenticated public showcase is intentionally read-only and single-process. Interactive public approvals require authenticated identity plus tenant/session isolation; hosting-edge denial-of-service and connection controls remain mandatory.
+- The committed Render Blueprint uses free web services by default; inactive services can cold-start slowly, and platform usage/billing settings must be reviewed before external creation.
 - GitHub writes are mock-only unless an allowlisted live adapter is explicitly configured.
 - Model confidence is a heuristic, not a calibrated probability.
 - A live OpenAI provider smoke test reached the API on 2026-10-01 but returned `credit_balance_exhausted`; the real-provider result is therefore `NOT_EXECUTED` until account credits are available.

@@ -24,6 +24,29 @@ The profile fails startup when real AI, PostgreSQL, wildcard CORS, or a localhos
 
 The in-process request limiter is defense in depth for this single-process profile. TLS, denial-of-service protection, request and connection limits, and monitoring still belong at the hosting edge. Do not horizontally scale this profile: its snapshot, limiter, and SSE subscribers are process-local.
 
+### Render Blueprint
+
+`render.yaml` defines the release-candidate topology as two single-instance Docker web services in the same region:
+
+- `resolveai-showcase-api` packages the committed evaluation result, starts FastAPI on the platform-provided port, and uses only the fail-closed `public_showcase` profile.
+- `resolveai-showcase-web` builds the Next.js command center with the API's platform-assigned HTTPS URL.
+- Render's `RENDER_EXTERNAL_URL` values wire the exact browser origin into the API CORS allowlist and the exact API origin into the public web build. No credential is copied between services.
+- the packaged evaluation keeps the code revision under which that benchmark was actually executed; Render records the separately deployed commit in its deployment metadata.
+- both services remain at one instance and deploy only after repository checks pass.
+
+The committed Blueprint selects Render's free plan to avoid provisioning a paid resource by default. Free web services can spin down after inactivity, so the first request can be delayed. Review the current platform limits and billing settings before creating the Blueprint; do not silently upgrade either service or enable horizontal scaling.
+
+Publication still requires a Git remote and a Render workspace connected to that repository. After the release commit is present on the repository's default branch, create a Blueprint from `render.yaml`, review both generated services and environment values, and then deploy it. Verify the deployed contract with:
+
+1. `/health` reports `deployment_profile: public_showcase` and `persistence: memory`.
+2. `/api/incidents` contains only `INC-2026-0042` at `AWAITING_APPROVAL`.
+3. `/api/evals/runs` contains the committed 40-case executed result and its recorded execution revision.
+4. `POST /api/demo/reset`, approval, rejection, Chaos injection, and evaluation execution return `403`.
+5. The browser origin receives CORS access; an unrelated origin does not.
+6. Desktop and 320 px layouts show the public read-only label and disabled mutation controls.
+
+The CI container smoke test builds the same API Dockerfile and verifies the safe startup snapshot, evaluation provenance, and mutation denial before a hosted deploy can proceed.
+
 ## Hosted deployment checklist
 
 Do not expose the interactive local demo unchanged. The read-only showcase above is the only unauthenticated hosted profile. Before a public interactive or multi-user deployment:

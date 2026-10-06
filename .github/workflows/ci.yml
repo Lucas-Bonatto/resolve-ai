@@ -64,6 +64,51 @@ jobs:
       - run: npm test
       - run: npm run build
 
+  public-showcase-container:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build public-showcase API image
+        run: docker build --file services/api/Dockerfile --tag resolveai-api:ci .
+      - name: Verify packaged public-showcase contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          container_name=resolveai-public-showcase-ci
+          expected_revision="$(python -c 'import json; print(json.load(open("evals/results/latest.json", encoding="utf-8"))["code_revision"])')"
+          export EXPECTED_REVISION="$expected_revision"
+          cleanup() {
+            docker logs "$container_name" 2>/dev/null || true
+            docker rm --force "$container_name" 2>/dev/null || true
+          }
+          trap cleanup EXIT
+
+          docker run --detach --name "$container_name" \
+            --publish 127.0.0.1:18000:8000 \
+            --env PORT=8000 \
+            --env DEPLOYMENT_PROFILE=public_showcase \
+            --env AI_PROVIDER=demo \
+            --env ENABLE_REAL_AI=false \
+            --env PERSISTENCE_BACKEND=memory \
+            --env CORS_ALLOWED_ORIGINS=https://showcase.example \
+            resolveai-api:ci
+
+          for attempt in {1..60}; do
+            if curl --fail --silent http://127.0.0.1:18000/health > /dev/null; then
+              break
+            fi
+            if [[ "$attempt" == "60" ]]; then
+              exit 1
+            fi
+            sleep 1
+          done
+
+          curl --fail --silent http://127.0.0.1:18000/api/incidents |
+            python -c 'import json, sys; data = json.load(sys.stdin); assert len(data) == 1 and data[0]["state"] == "AWAITING_APPROVAL"'
+          curl --fail --silent http://127.0.0.1:18000/api/evals/runs |
+            python -c 'import json, os, sys; data = json.load(sys.stdin); assert len(data) == 1 and data[0]["code_revision"] == os.environ["EXPECTED_REVISION"] and len(data[0]["results"]) == 40'
+          test "$(curl --silent --output /dev/null --write-out '%{http_code}' --request POST http://127.0.0.1:18000/api/demo/reset)" = "403"
+
   browser:
     runs-on: ubuntu-latest
     env:

@@ -78,6 +78,8 @@ For a hosted portfolio, set `DEPLOYMENT_PROFILE=public_showcase`, keep the deter
 
 This profile deliberately does not make the interactive demo multi-user safe. Authentication and tenant/session isolation are required before enabling public approvals, reset, Chaos injection, or evaluation execution. See the [deployment guide](docs/deployment.md) for the complete configuration and limits.
 
+The repository also includes `render.yaml`, a two-service, single-instance Blueprint for this read-only profile. It wires the platform-assigned HTTPS origins without credentials, packages the evaluation result with its recorded execution revision, and waits for repository checks before redeploying. Creating the Blueprint is an explicit external action; review Render's current free-plan limits and billing settings first.
+
 ## Optional OpenAI provider
 
 Keep secrets in `.env.local` (ignored by Git), then set:
