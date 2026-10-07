@@ -8,6 +8,8 @@ The application is intentionally honest about execution: the public experience u
 
 > NovaPay, its transactions, logs, deployments, customers, and incidents are entirely fictional. No real payment system is connected.
 
+**Live read-only showcase:** [resolveai-showcase-web.onrender.com](https://resolveai-showcase-web.onrender.com) · [API health](https://resolveai-showcase-api.onrender.com/health). The free services may take longer on the first request after inactivity.
+
 ## What you can verify
 
 - A full incident state machine from `NEW` to `RESOLVED`, including rejection and failure branches.
@@ -78,7 +80,7 @@ For a hosted portfolio, set `DEPLOYMENT_PROFILE=public_showcase`, keep the deter
 
 This profile deliberately does not make the interactive demo multi-user safe. Authentication and tenant/session isolation are required before enabling public approvals, reset, Chaos injection, or evaluation execution. See the [deployment guide](docs/deployment.md) for the complete configuration and limits.
 
-The repository also includes `render.yaml`, a two-service, single-instance Blueprint for this read-only profile. It wires the platform-assigned HTTPS origins without credentials, packages the evaluation result with its recorded execution revision, and waits for repository checks before redeploying. Creating the Blueprint is an explicit external action; review Render's current free-plan limits and billing settings first.
+The hosted showcase is deployed from `render.yaml` as two single-instance Render services. The Blueprint wires the platform-assigned HTTPS origins without credentials, packages the evaluation result with its recorded execution revision, and waits for repository checks before redeploying. Review Render's current free-plan limits and billing settings before reproducing or changing this deployment.
 
 ## Optional OpenAI provider
 
