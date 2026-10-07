@@ -31,7 +31,7 @@
 ## Next
 
 - Capture polished desktop and narrow-layout release media from the hosted read-only showcase
-- Calibrate real-provider confidence on a larger private evaluation set
+- Optional adopter work: calibrate real-provider confidence on a larger private evaluation set using adopter-owned credentials and credits
 - Add authentication and tenant-aware authorization before any public multi-user deployment
 - Add durable cross-process event delivery before horizontally scaling SSE workers
 
@@ -43,7 +43,7 @@
 - The current Next.js ESLint toolchain retains a development-only `braces` denial-of-service advisory with no patched upstream release; lint inputs are repository-controlled and production dependencies audit clean.
 - GitHub writes are mock-only unless an allowlisted live adapter is explicitly configured.
 - Model confidence is a heuristic, not a calibrated probability.
-- A live OpenAI provider smoke test reached the API on 2026-10-01 but returned `credit_balance_exhausted`; the real-provider result is therefore `NOT_EXECUTED` until account credits are available.
+- The hosted portfolio intentionally never calls the paid OpenAI provider. A live smoke test reached the API on 2026-10-07 but returned `credit_balance_exhausted`; its result remains honestly labeled `NOT_EXECUTED`. Contributors may opt in with their own credentials and credits, while the default demo remains fully usable without them.
 - Correlation IDs and structured audit records are implemented; production log export and tamper-evident archival are not.
 - PostgreSQL migrations and repository contracts are tested locally, but real PostgreSQL concurrency was not rerun during the Phase 4 audit because Docker/PostgreSQL were unavailable on the audit host.
 - The focused accessibility pass has automated keyboard, reflow, semantics, and forced-colors coverage, but it is not a WCAG certification; a real screen-reader session and 200% zoom review remain manual release checks.

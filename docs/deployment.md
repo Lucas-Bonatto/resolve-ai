@@ -22,6 +22,8 @@ Build the web app with `NEXT_PUBLIC_API_URL` set to the public API origin. Never
 
 The profile fails startup when real AI, PostgreSQL, wildcard CORS, or a localhost browser origin is configured. It seeds the deterministic flagship incident through the normal coordinator and pauses at `AWAITING_APPROVAL`, then loads the versioned executed result from `evals/results/latest.json`. The API returns `403` for Chaos injection, approval, rejection, evaluation execution, and demo reset. The browser labels the runtime as a public read-only showcase and disables matching controls, but backend policy is the enforcing boundary.
 
+Do not add `OPENAI_API_KEY` to the public showcase services. Real-provider execution is a contributor-owned, local opt-in: anyone enabling it supplies and pays for their own credentials. The hosted portfolio remains deterministic and incurs no model usage.
+
 The in-process request limiter is defense in depth for this single-process profile. TLS, denial-of-service protection, request and connection limits, and monitoring still belong at the hosting edge. Do not horizontally scale this profile: its snapshot, limiter, and SSE subscribers are process-local.
 
 ### Render Blueprint
