@@ -36,7 +36,7 @@ The in-process request limiter is defense in depth for this single-process profi
 
 The committed Blueprint selects Render's free plan to avoid provisioning a paid resource by default. Free web services can spin down after inactivity, so the first request can be delayed. Review the current platform limits and billing settings before creating the Blueprint; do not silently upgrade either service or enable horizontal scaling.
 
-Publication still requires a Git remote and a Render workspace connected to that repository. After the release commit is present on the repository's default branch, create a Blueprint from `render.yaml`, review both generated services and environment values, and then deploy it. Verify the deployed contract with:
+The reference read-only showcase is live at [resolveai-showcase-web.onrender.com](https://resolveai-showcase-web.onrender.com), backed by [resolveai-showcase-api.onrender.com](https://resolveai-showcase-api.onrender.com). It was verified on 2026-10-07 against the following deployed contract:
 
 1. `/health` reports `deployment_profile: public_showcase` and `persistence: memory`.
 2. `/api/incidents` contains only `INC-2026-0042` at `AWAITING_APPROVAL`.
@@ -44,6 +44,8 @@ Publication still requires a Git remote and a Render workspace connected to that
 4. `POST /api/demo/reset`, approval, rejection, Chaos injection, and evaluation execution return `403`.
 5. The browser origin receives CORS access; an unrelated origin does not.
 6. Desktop and 320 px layouts show the public read-only label and disabled mutation controls.
+
+To reproduce it, connect a Render workspace to the Git remote, create a Blueprint from `render.yaml`, review both generated services and environment values, and deploy only after the release commit and repository checks are available on the default branch.
 
 The CI container smoke test builds the same API Dockerfile and verifies the safe startup snapshot, evaluation provenance, and mutation denial before a hosted deploy can proceed.
 

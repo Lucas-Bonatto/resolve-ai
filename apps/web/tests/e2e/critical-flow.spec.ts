@@ -160,6 +160,10 @@ test("evaluation center executes the complete deterministic contract", async ({ 
 test("core data surfaces reflow at 320 pixels and retain named table regions", async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 800 });
 
+  await page.goto("/dashboard", { waitUntil: "domcontentloaded" });
+  await expect(page.getByRole("heading", { name: "Central de operações" })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+
   await page.goto("/evals", { waitUntil: "domcontentloaded" });
   await expect(page.getByRole("status")).toBeAttached();
   await expect(page.getByText("Resultado executado", { exact: true })).toBeVisible();

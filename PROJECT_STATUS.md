@@ -26,10 +26,11 @@
 - Public showcase deployment readiness: Render Blueprint with exact cross-service HTTPS origins, single-instance boundaries, executed-benchmark revision provenance, packaged evaluation artifact, platform-port support, and a CI container contract smoke test
 - Pre-publication dependency hardening: Vitest upgraded to the first Node 20-compatible patched line and pytest raised past its insecure temporary-directory implementation; production npm dependencies audit clean
 - Enforced coverage baselines: all executable Python and web source is measured in CI, with an 85% Python floor and explicit web statement/branch/function/line floors based on the executed baseline
+- Hosted public showcase: the read-only Render Blueprint is live at `https://resolveai-showcase-web.onrender.com`, with the API contract, exact-origin CORS, mutation denial, and desktop/narrow layouts verified on 2026-10-07
 
 ## Next
 
-- Publish the release commit to a Git remote, deploy the read-only Render Blueprint, and capture desktop/narrow-layout release media
+- Capture polished desktop and narrow-layout release media from the hosted read-only showcase
 - Calibrate real-provider confidence on a larger private evaluation set
 - Add authentication and tenant-aware authorization before any public multi-user deployment
 - Add durable cross-process event delivery before horizontally scaling SSE workers
