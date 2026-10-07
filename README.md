@@ -84,6 +84,8 @@ The hosted showcase is deployed from `render.yaml` as two single-instance Render
 
 ## Optional OpenAI provider
 
+This is a bring-your-own-key integration for contributors who clone the repository. It is never enabled in the hosted portfolio showcase, and the project owner does not fund third-party API usage. Anyone opting in is responsible for their own OpenAI credentials, credits, usage limits, and charges.
+
 Keep secrets in `.env.local` (ignored by Git), then set:
 
 ```dotenv
@@ -93,7 +95,7 @@ OPENAI_API_KEY=your_key
 OPENAI_MODEL=gpt-6-luna
 ```
 
-The provider returns the same Pydantic `Diagnosis` contract as demo mode. Tool authorization, evidence ownership, timeouts, and approval enforcement remain server-side. See [agent behavior](docs/agents.md).
+The provider returns the same Pydantic `Diagnosis` contract as demo mode. Tool authorization, evidence ownership, timeouts, and approval enforcement remain server-side. The default demo and public showcase remain fully usable without an OpenAI account. See [agent behavior](docs/agents.md).
 
 An explicitly authorized live smoke test is available and is never part of baseline CI:
 
